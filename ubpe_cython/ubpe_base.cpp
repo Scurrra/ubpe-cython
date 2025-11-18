@@ -27,7 +27,7 @@ UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
            "Provided `alphabet` should be of size `alphabet_size`.");
     this->alphabet = alphabet;
     std::transform(
-        alphabet.begin(), alphabet.end(),
+        alphabet.cbegin(), alphabet.cend(),
         std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
         [](const auto& element) {
             return std::make_pair(element.second, element.first);
