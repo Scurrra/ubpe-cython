@@ -1,0 +1,128 @@
+#include "ubpe_base.hpp"
+
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+#include <set>
+#include <utility>
+#include <vector>
+
+namespace ubpe {
+
+UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size)
+    : n_tokens(n_tokens), alphabet_size(alphabet_size) {}
+
+UbpeBase::UbpeBase(
+    uint32_t n_tokens, uint32_t alphabet_size,
+    std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
+    std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
+    std::map<uint32_t, float> tokens_weights) {}
+
+void UbpeBase::_rearrange_tokens_by_weight() {
+    // buffer to sort by weight and eliminate some of them
+    std::vector<std::pair<uint32_t, std::vector<uint32_t>>> buf(
+        this->tokens_backward_mapper.begin(),
+        this->tokens_backward_mapper.end());
+
+    // sort buffer
+    std::sort(buf.begin(), buf.end(), [this](const auto& a, const auto& b) {
+        return tokens_weights[a.first] < tokens_weights[b.first];
+    });
+
+    auto to_delete_quantity =
+        this->tokens_weights.size() - this->n_tokens + this->alphabet_size;
+    std::set<uint32_t> to_delete;
+
+    for (uint32_t i = 0; i < buf.size(); i++) {
+        // skip if `i` is already pended for deletion
+        if (to_delete.contains(i)) {
+            continue;
+        }
+        // if all values for deletion are already found
+        if (to_delete.size() >= to_delete_quantity) {
+            break;
+        }
+
+        to_delete.insert(i);
+
+        // check some rare condition
+        for (uint32_t j = i + 1; j < buf.size(); j++) {
+            if (auto it = std::find(buf[j].second.begin(), buf[j].second.end(),
+                                    buf[i].first);
+                it != buf[j].second.end()) {
+                to_delete.insert(j);
+            }
+        }
+    }
+
+    // make `to_delete` contain actual tokens
+    std::for_each(to_delete.begin(), to_delete.end(),
+                  [&buf](const auto& element) { return buf[element].first; });
+
+    // reverse `buf`
+    std::reverse(buf.begin(), buf.end());
+
+    // create mapping between old tokens and new tokens
+    std::map<uint32_t, uint32_t> transformer;
+    // for (uint32_t i = 0; i < this->alphabet_size; i++) {
+    //     transformer[i] = i;
+    // }
+    std::generate_n(std::inserter(transformer, transformer.end()),
+                    this->alphabet_size, [i = -1]() mutable {
+                        i++;
+                        return std::make_pair(i, i);
+                    });
+    // for (uint32_t i = 0; i < buf.size(); i++) {
+    //     transformer[buf[i].first] = this->alphabet_size + i;
+    // }
+    std::generate_n(std::inserter(transformer, transformer.end()), buf.size(),
+                    [&buf, this, i = -1]() mutable {
+                        i++;
+                        return std::make_pair(buf[i].first, alphabet_size + i);
+                    });
+
+    // drop weights for deleted tokens
+    std::erase_if(this->tokens_weights, [&to_delete](const auto& element) {
+        return to_delete.contains(element.first);
+    });
+
+    // update backward mapper
+    std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper;
+    std::transform(
+        this->tokens_backward_mapper.cbegin(),
+        this->tokens_backward_mapper.cend(),
+        std::inserter(tokens_backward_mapper, tokens_backward_mapper.end()),
+        [&](const auto& element) {
+            std::vector<uint32_t> new_sequence;
+            new_sequence.reserve(element.second.size());
+            std::transform(element.second.cbegin(), element.second.cend(),
+                           std::back_inserter(new_sequence),
+                           [&](const auto& el) { return transformer.at(el); });
+            return std::make_pair(transformer.at(element.first), new_sequence);
+        });
+    this->tokens_backward_mapper = std::move(tokens_backward_mapper);
+
+    // update forward mapper
+    std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper;
+    std::transform(
+        this->tokens_backward_mapper.cbegin(),
+        this->tokens_backward_mapper.cend(),
+        std::inserter(tokens_forward_mapper, tokens_forward_mapper.end()),
+        [](const auto& element) {
+            return std::make_pair(element.second, element.first);
+        });
+    this->tokens_forward_mapper = std::move(tokens_forward_mapper);
+}
+
+std::map<std::vector<uint32_t>, uint32_t> UbpeBase::getForwardMapper() const {
+    return this->tokens_forward_mapper;
+}
+
+std::map<uint32_t, std::vector<uint32_t>> UbpeBase::getBackwardMapper() const {
+    return this->tokens_backward_mapper;
+}
+
+std::map<uint32_t, float> UbpeBase::getTokensWeights() const {
+    return this->tokens_weights;
+}
+}  // namespace ubpe
