@@ -1,6 +1,7 @@
 #include "ubpe_base.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <iterator>
 #include <set>
@@ -10,15 +11,55 @@
 namespace ubpe {
 
 UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size)
-    : n_tokens(n_tokens), alphabet_size(alphabet_size) {}
+    : n_tokens(n_tokens), alphabet_size(alphabet_size) {
+    std::generate_n(std::inserter(this->alphabet, this->alphabet.end()),
+                    alphabet_size,
+                    [i = 0]() mutable { return std::make_pair(i, i); });
+    std::generate_n(
+        std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
+        alphabet_size, [i = 0]() mutable { return std::make_pair(i, i); });
+}
+
+UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
+                   std::map<uint32_t, uint32_t> alphabet)
+    : n_tokens(n_tokens), alphabet_size(alphabet_size) {
+    assert((alphabet_size == alphabet.size()) &&
+           "Provided `alphabet` should be of size `alphabet_size`.");
+    this->alphabet = alphabet;
+    std::transform(
+        alphabet.begin(), alphabet.end(),
+        std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
+        [](const auto& element) {
+            return std::make_pair(element.second, element.first);
+        });
+}
 
 UbpeBase::UbpeBase(
     uint32_t n_tokens, uint32_t alphabet_size,
+    std::map<uint32_t, uint32_t> alphabet,
+    std::map<uint32_t, uint32_t> inverse_alphabet,
     std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
     std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
-    std::map<uint32_t, float> tokens_weights) {}
+    std::map<uint32_t, float> tokens_weights)
+    : n_tokens(n_tokens),
+      alphabet_size(alphabet_size),
+      alphabet(alphabet),
+      inverse_alphabet(inverse_alphabet),
+      tokens_forward_mapper(tokens_forward_mapper),
+      tokens_backward_mapper(tokens_backward_mapper),
+      tokens_weights(tokens_weights) {
+    assert((alphabet_size == alphabet.size()) &&
+           "Provided `alphabet` should be of size `alphabet_size`.");
+    assert((alphabet.size() == inverse_alphabet.size()) &&
+           "`alphabet` and `inverse_alphabet` should be of the same size.");
+}
 
 void UbpeBase::_rearrange_tokens_by_weight() {
+    assert((this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0 ||
+            this->tokens_weights.size() == 0) &&
+           "Can not rearrange non-fitted tokenizer");
+
     // buffer to sort by weight and eliminate some of them
     std::vector<std::pair<uint32_t, std::vector<uint32_t>>> buf(
         this->tokens_backward_mapper.begin(),
@@ -124,5 +165,13 @@ std::map<uint32_t, std::vector<uint32_t>> UbpeBase::getBackwardMapper() const {
 
 std::map<uint32_t, float> UbpeBase::getTokensWeights() const {
     return this->tokens_weights;
+}
+
+std::map<uint32_t, uint32_t> UbpeBase::getAlphabet() const {
+    return this->alphabet;
+}
+
+std::map<uint32_t, uint32_t> UbpeBase::getInverseAlphabet() const {
+    return this->inverse_alphabet;
 }
 }  // namespace ubpe

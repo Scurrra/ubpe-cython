@@ -12,6 +12,9 @@ class UbpeBase {
     uint32_t n_tokens;
     uint32_t alphabet_size;
 
+    std::map<uint32_t, uint32_t> alphabet;
+    std::map<uint32_t, uint32_t> inverse_alphabet;
+
     std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper;
     std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper;
 
@@ -24,7 +27,10 @@ class UbpeBase {
 
    public:
     UbpeBase(uint32_t, uint32_t);
-    UbpeBase(uint32_t, uint32_t, std::map<std::vector<uint32_t>, uint32_t>,
+    UbpeBase(uint32_t, uint32_t, std::map<uint32_t, uint32_t>);
+    UbpeBase(uint32_t, uint32_t, std::map<uint32_t, uint32_t>,
+             std::map<uint32_t, uint32_t>,
+             std::map<std::vector<uint32_t>, uint32_t>,
              std::map<uint32_t, std::vector<uint32_t>>,
              std::map<uint32_t, float>);
     UbpeBase(const UbpeBase&) = default;
@@ -44,6 +50,14 @@ class UbpeBase {
     /// @brief Get token weighs.
     /// @return `this.tokens_weights`
     std::map<uint32_t, float> getTokensWeights() const;
+
+    /// @brief Get alphabet mapping.
+    /// @return Base alphabet mapping.
+    std::map<uint32_t, uint32_t> getAlphabet() const;
+
+    /// @brief Get inverse alphabet mapping.
+    /// @return Inverse abse alphabet mapping.
+    std::map<uint32_t, uint32_t> getInverseAlphabet() const;
 };
 
 }  // namespace ubpe
