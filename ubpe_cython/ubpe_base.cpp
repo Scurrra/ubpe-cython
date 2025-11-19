@@ -12,12 +12,13 @@ namespace ubpe {
 
 UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size)
     : n_tokens(n_tokens), alphabet_size(alphabet_size) {
-    std::generate_n(std::inserter(this->alphabet, this->alphabet.end()),
-                    alphabet_size,
-                    [i = 0]() mutable { return std::make_pair(i, i); });
+    std::generate_n(
+        std::inserter(this->alphabet, this->alphabet.end()), alphabet_size,
+        [i = 0]() mutable -> std::pair<uint32_t, uint32_t> { return {i, i}; });
     std::generate_n(
         std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
-        alphabet_size, [i = 0]() mutable { return std::make_pair(i, i); });
+        alphabet_size,
+        [i = 0]() mutable -> std::pair<uint32_t, uint32_t> { return {i, i}; });
 }
 
 UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
@@ -29,8 +30,8 @@ UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
     std::transform(
         alphabet.cbegin(), alphabet.cend(),
         std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
-        [](const auto& element) {
-            return std::make_pair(element.second, element.first);
+        [](const auto& element) -> std::pair<uint32_t, uint32_t> {
+            return {element.second, element.first};
         });
 }
 
@@ -109,18 +110,20 @@ void UbpeBase::_rearrange_tokens_by_weight() {
     //     transformer[i] = i;
     // }
     std::generate_n(std::inserter(transformer, transformer.end()),
-                    this->alphabet_size, [i = -1]() mutable {
+                    this->alphabet_size,
+                    [i = -1]() mutable -> std::pair<uint32_t, uint32_t> {
                         i++;
-                        return std::make_pair(i, i);
+                        return {i, i};
                     });
     // for (uint32_t i = 0; i < buf.size(); i++) {
     //     transformer[buf[i].first] = this->alphabet_size + i;
     // }
-    std::generate_n(std::inserter(transformer, transformer.end()), buf.size(),
-                    [&buf, this, i = -1]() mutable {
-                        i++;
-                        return std::make_pair(buf[i].first, alphabet_size + i);
-                    });
+    std::generate_n(
+        std::inserter(transformer, transformer.end()), buf.size(),
+        [&buf, this, i = -1]() mutable -> std::pair<uint32_t, uint32_t> {
+            i++;
+            return {buf[i].first, alphabet_size + i};
+        });
 
     // drop weights for deleted tokens
     std::erase_if(this->tokens_weights, [&to_delete](const auto& element) {
@@ -133,13 +136,13 @@ void UbpeBase::_rearrange_tokens_by_weight() {
         this->tokens_backward_mapper.cbegin(),
         this->tokens_backward_mapper.cend(),
         std::inserter(tokens_backward_mapper, tokens_backward_mapper.end()),
-        [&](const auto& element) {
+        [&](const auto& element) -> std::pair<uint32_t, std::vector<uint32_t>> {
             std::vector<uint32_t> new_sequence;
             new_sequence.reserve(element.second.size());
             std::transform(element.second.cbegin(), element.second.cend(),
                            std::back_inserter(new_sequence),
                            [&](const auto& el) { return transformer.at(el); });
-            return std::make_pair(transformer.at(element.first), new_sequence);
+            return {transformer.at(element.first), new_sequence};
         });
     this->tokens_backward_mapper = std::move(tokens_backward_mapper);
 
@@ -149,8 +152,8 @@ void UbpeBase::_rearrange_tokens_by_weight() {
         this->tokens_backward_mapper.cbegin(),
         this->tokens_backward_mapper.cend(),
         std::inserter(tokens_forward_mapper, tokens_forward_mapper.end()),
-        [](const auto& element) {
-            return std::make_pair(element.second, element.first);
+        [](const auto& element) -> std::pair<std::vector<uint32_t>, uint32_t> {
+            return {element.second, element.first};
         });
     this->tokens_forward_mapper = std::move(tokens_forward_mapper);
 }
