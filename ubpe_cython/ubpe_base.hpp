@@ -72,12 +72,12 @@ class UbpeBase {
     /// @param document Sequence of basic tokens to encode.
     /// @return List of encoded documents with weights.
     virtual std::vector<std::pair<std::vector<uint32_t>, float>> encode(
-        std::vector<uint32_t>) = 0;
+        std::vector<uint32_t>) const = 0;
 
     /// @brief Decode a vector of `tokens` with the fitted tokenizer.
     /// @param tokens An encoded sequence of tokens to decode.
     /// @return Decoded document.
-    virtual std::vector<uint32_t> decode(std::vector<uint32_t>) = 0;
+    virtual std::vector<uint32_t> decode(std::vector<uint32_t>) const = 0;
 };
 
 }  // namespace ubpe
