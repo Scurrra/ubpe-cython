@@ -10,6 +10,7 @@
 #include <set>
 #include <vector>
 
+#include "counter.hpp"
 #include "pair_counter.hpp"
 #include "utils.hpp"
 
@@ -170,12 +171,14 @@ std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic::encode(
     }
 
     // compute weight of encoded `doc`
+    auto counter = Counter<uint32_t>(doc);
     auto weight = std::accumulate(
-        doc.cbegin(), doc.cend(), 0.0, [this](auto total, auto& token) {
-            return this->tokens_weights.contains(token)
-                       ? total + this->tokens_weights.at(token)
-                       : total;
-            
+        counter.cbegin(), counter.cend(), 0.0,
+        [this](auto total, auto& element) {
+            return total + (this->tokens_weights.contains(element.first)
+                                ? (1 + std::log(element.second)) *
+                                      this->tokens_weights.at(element.first)
+                                : 0.0);
         });
     return {{doc, weight}};
 }
