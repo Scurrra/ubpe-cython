@@ -2,6 +2,7 @@
 #define SUB_SEQUENCES_SEARCH_TREE_HPP
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -39,15 +40,19 @@ class SSSTreeNode {
     SSSTreeNode operator+(std::pair<K, V> element) {
         const auto& [key, value] = element;
 
+        // find common prefix for the node's key and `key`
         auto i = 0;
         auto max_len = std::min(this->key.size(), key.size());
-        while (i < max_len && this->key.at(i) == key.at(i)) i++;
+        while (i < max_len && this->key[i] == key[i]) i++;
 
         // key to insert is in the tree
         if (i == key.size()) {
             // equal keys
             if (i == this->key.size()) {
+                // if node was empty, set the value
                 if (!this->value) this->value = value;
+                // current node is returned with the old value if it was present
+                // or with the new value if the node was empty
                 return this;
             }
 
@@ -67,7 +72,7 @@ class SSSTreeNode {
             // the new key starts with the old one
             if (i == this->key.size()) {
                 for (auto& child : this->children) {
-                    if (child.key.at(0) == key.at(0)) {
+                    if (child.key[0] == key[0]) {
                         return child + std::make_pair(key, value);
                     }
                 }
@@ -98,11 +103,11 @@ class SSSTreeNode {
         if (std::vector(key.cbegin(), key.cbegin() + this->key.size()) ==
             this->key) {
             // delete the prefix
-            key = std::vector(key.cbegin() + this->key.size(), key.end());
+            key = std::vector(key.cbegin() + this->key.size(), key.cend());
             // search which child contains the rest of `key`
             for (const auto& child : this->children) {
                 // if child's key start with the same value as `key`
-                if (child.key.at(0) == key.at(0)) {
+                if (child.key[0] == key[0]) {
                     // recursively search in the child
                     return child[key];
                 }
@@ -121,6 +126,7 @@ class SSSTreeNode {
     /// present in the tree.
     std::optional<V> operator()(K& key, std::vector<std::pair<K, V>>& stack,
                                 size_t start = 0) const {
+        assert((start < key.size()) || "`start` is out of range");
         // check if the untraced part of `key` is shorter than the key in the
         // node
         if (start + this->key.size() > key.size()) {
@@ -136,7 +142,7 @@ class SSSTreeNode {
             // search which child contains the rest of `key`
             for (const auto& child : this->children) {
                 // if child's key start with the same value as `key`
-                if (child.key.at(0) == key.at(start)) {
+                if (child.key[0] == key[start]) {
                     // recursively search in the child
                     return child(key, stack, start);
                 }
@@ -165,6 +171,9 @@ class SSSTree {
     SSSTree& operator=(SSSTree&&) = default;
     ~SSSTree() = default;
 
+    /// @brief Check if the tree is empty.
+    bool empty() const { return this->children.size() == 0; }
+
     /// @brief Add a key-value pair to the tree.
     /// @param element Key-value pair.
     /// @returns The new tree node.
@@ -173,7 +182,7 @@ class SSSTree {
         auto i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
-            if (this->children[i].key.at(0) == element.first.at(0)) {
+            if (this->children[i].key[0] == element.first[0]) {
                 // add the element to this child
                 return this->children[i] + element;
             }
@@ -196,7 +205,7 @@ class SSSTree {
         auto i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
-            if (this->children[i].key.at(0) == key.at(0)) {
+            if (this->children[i].key[0] == key[0]) {
                 // search for `key` in this child
                 return this->children[i][key];
             }
@@ -212,16 +221,17 @@ class SSSTree {
     /// @param key Key for lookup.
     /// @returns A vector of key-value pairs in the tree where keys are prefixes
     /// of `key` present in the tree.
-    std::vector<std::pair<K, V>> operator()(K key) const {
+    std::vector<std::pair<K, V>> operator()(K key, size_t start = 0) const {
+        assert((start < key.size()) || "`start` is out of range");
         // search which child may contain `key`
         auto i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
-            if (this->children[i].key.at(0) == key.at(0)) {
+            if (this->children[i].key[0] == key[start]) {
                 // create empty stack
                 std::vector<std::pair<K, V>> stack;
                 // trace the tree
-                auto _ = this->children[i](key, stack, 0);
+                auto _ = this->children[i](key, stack, start);
                 // remove null values from the stack and accumulate key's parts
                 // at the same time
                 std::remove_if(stack.begin(), stack.end(),

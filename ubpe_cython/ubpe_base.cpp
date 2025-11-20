@@ -68,25 +68,27 @@ void UbpeBase::_rearrange_tokens_by_weight() {
 
     // sort buffer
     std::sort(buf.begin(), buf.end(), [this](const auto& a, const auto& b) {
-        return tokens_weights[a.first] < tokens_weights[b.first];
+        return this->tokens_weights[a.first] < this->tokens_weights[b.first];
     });
 
+    // min number of tokens to delete
     auto to_delete_quantity =
         this->tokens_weights.size() - this->n_tokens + this->alphabet_size;
+    // find tokens to delete
     std::set<uint32_t> to_delete;
-
+    // check tokens with smalest weights first
     for (uint32_t i = 0; i < buf.size(); i++) {
         // skip if `i` is already pended for deletion
         if (to_delete.contains(i)) continue;
-
         // if all values for deletion are already found
         if (to_delete.size() >= to_delete_quantity) break;
-
+        // add token for deletion to the set
         to_delete.insert(i);
 
-        // check some rare condition
+        // check some rare condition when found token is present in more
+        // valueable subsequence of tokens for substitution
         for (uint32_t j = i + 1; j < buf.size(); j++) {
-            if (auto it = std::find(buf[j].second.begin(), buf[j].second.end(),
+            if (auto it = std::find(buf[j].second.cbegin(), buf[j].second.cend(),
                                     buf[i].first);
                 it != buf[j].second.end()) {
                 to_delete.insert(j);

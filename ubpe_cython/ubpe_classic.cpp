@@ -38,6 +38,7 @@ UbpeClassic::UbpeClassic(
 
 void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
                       uint32_t n_candidates, bool rearrange_tokens) {
+    assert((n_candidates > 0) || "`n_candidates` should not be 0");
     auto max_token = this->alphabet_size - 1;
 
     // recursively fit tokenizer with `corpus`
@@ -65,10 +66,8 @@ void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
             auto good_to_add = true;
             for (const auto& [pair1, _] : token_pairs) {
                 good_to_add =
-                    pairs_counter.at({pair2.second, pair1.first}).second <
-                        freq2 &&
-                    pairs_counter.at({pair1.second, pair2.first}).second <
-                        freq2;
+                    pairs_counter[{pair2.second, pair1.first}].second < freq2 &&
+                    pairs_counter[{pair1.second, pair2.first}].second < freq2;
 
                 if (!good_to_add) break;
             }
@@ -83,8 +82,8 @@ void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
         std::map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
         for (const auto& [pair, _] : token_pairs) {
             max_token++;
-            this->tokens_weights[max_token] = std::log(
-                (1 + corpus.size()) / (1 + pairs_counter.at(pair).first));
+            this->tokens_weights[max_token] =
+                std::log((1 + corpus.size()) / (1 + pairs_counter[pair].first));
             this->tokens_backward_mapper[max_token] = {pair.first, pair.second};
             this->tokens_forward_mapper[{pair.first, pair.second}] = max_token;
             sub[pair.first] = {pair.second, max_token};
@@ -109,7 +108,7 @@ void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
 }
 
 std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic::encode(
-    std::vector<uint32_t> doc) const {
+    std::vector<uint32_t> doc, uint8_t top_n) const {
     assert((this->pairs.size() == 0) && "Tokenizer was not fitted");
     assert((this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0 ||
@@ -173,7 +172,10 @@ std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic::encode(
     // compute weight of encoded `doc`
     auto weight = std::accumulate(
         doc.cbegin(), doc.cend(), 0.0, [this](auto total, auto& token) {
-            return total + this->tokens_weights.at(token);
+            return this->tokens_weights.contains(token)
+                       ? total + this->tokens_weights.at(token)
+                       : total;
+            
         });
     return {{doc, weight}};
 }

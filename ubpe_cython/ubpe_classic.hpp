@@ -28,7 +28,7 @@ class UbpeClassic : protected UbpeBase {
              bool = true) override;
 
     std::vector<std::pair<std::vector<uint32_t>, float>> encode(
-        std::vector<uint32_t>) const override;
+        std::vector<uint32_t>, uint8_t = 1) const override;
 
     std::vector<uint32_t> decode(std::vector<uint32_t>) const override;
 };

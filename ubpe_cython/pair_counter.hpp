@@ -103,7 +103,7 @@ class PairCounter {
     /// @returns Pair of counts where `.first` is a number of docs the `pair`
     /// occured in corpus and `.second` is a number of occurences of `pair` in
     /// the whole corpus.
-    std::pair<size_t, size_t> at(std::pair<T, T> pair) const {
+    std::pair<size_t, size_t> operator[](std::pair<T, T> pair) const {
         // if `pair` was not in corpus
         if (!this->docs_counter.contains(pair)) return {0, 0};
 

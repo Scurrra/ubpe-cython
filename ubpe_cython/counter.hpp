@@ -59,8 +59,9 @@ class Counter {
     /// @returns Count of occuriences of `element`.
     size_t& operator[](T element) {
         // if `pair` was not in corpus
-        assert(this->counter.contains(element) ||
-               "Counter does not contain this element");
+        if (!this->counter.contains(element)) {
+            this->counter[element] = 0;
+        }
 
         return this->counter[element];
     }
@@ -70,8 +71,9 @@ class Counter {
     /// @returns Count of occuriences of `element`.
     const size_t& operator[](T element) const {
         // if `pair` was not in corpus
-        assert(this->counter.contains(element) ||
-               "Counter does not contain this element");
+        if (!this->counter.contains(element)) {
+            this->counter[element] = 0;
+        }
 
         return this->counter[element];
     }
@@ -81,9 +83,8 @@ class Counter {
     /// @returns Count of occuriences of `element`.
     const size_t& at(T element) const noexcept {
         // if `pair` was not in corpus
-        if (!this->counter.contains(element)) {
-            this->counter[element] = 0;
-        }
+        assert(this->counter.contains(element) ||
+               "Counter does not contain this element");
 
         return this->counter[element];
     }

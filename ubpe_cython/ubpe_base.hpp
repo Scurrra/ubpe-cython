@@ -62,7 +62,7 @@ class UbpeBase {
     /// @brief Fit tokenizer with `corpus`.
     /// @param corpus Data to fit tokenizer with.
     /// @param n_candidates Number of most popular pairs of adjacent tokens to
-    /// be substituted with new ones.
+    /// be substituted with new ones; ignored in `UbpeClassic`.
     /// @param rearrange_tokens If tokens should be rearranged to make tokens
     /// with smaller numbers be more valueable.
     virtual void fit(std::vector<std::vector<uint32_t>>, uint32_t = 50,
@@ -70,9 +70,10 @@ class UbpeBase {
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param document Sequence of basic tokens to encode.
+    /// @param top_n How many candidate ecoding to return; ignored in `UbpeClassic`.
     /// @return List of encoded documents with weights.
     virtual std::vector<std::pair<std::vector<uint32_t>, float>> encode(
-        std::vector<uint32_t>) const = 0;
+        std::vector<uint32_t>, uint8_t = 1) const = 0;
 
     /// @brief Decode a vector of `tokens` with the fitted tokenizer.
     /// @param tokens An encoded sequence of tokens to decode.
