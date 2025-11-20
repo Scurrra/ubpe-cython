@@ -57,11 +57,9 @@ class PairCounter {
     /// @param n How many pairs together with it's number of occurrences.
     std::vector<std::pair<std::pair<T, T>, size_t>> most_common(
         size_t n) const {
-        if (n == 0) {
-            return {};
-        }
+        if (n == 0) return {};
 
-        // comaparator
+        // comparator
         auto cmp = [](const auto& a, const auto& b) {
             return a.second > b.second;
         };
@@ -69,7 +67,7 @@ class PairCounter {
         // if `n` is greater than naumber of pairs itself then just sort
         if (n >= this->pairs_counter.size()) {
             std::vector<std::pair<std::pair<T, T>, size_t>> mc(
-                this->pairs_counter.begin(), this->pairs_counter.end());
+                this->pairs_counter.cbegin(), this->pairs_counter.cend());
 
             std::sort(mc.begin(), mc.end(), cmp);
 
@@ -85,10 +83,8 @@ class PairCounter {
         // add values to `pq` keeping it's size (less or) equal to `n`
         for (auto element : this->pairs_counter) {
             pq.emplace(element);
-
-            if (pq.size() > n) {
-                pq.pop();
-            }
+            // keep max size
+            if (pq.size() > n) pq.pop();
         }
 
         // get values from `pq`
@@ -107,10 +103,10 @@ class PairCounter {
     /// @returns Pair of counts where `.first` is a number of docs the `pair`
     /// occured in corpus and `.second` is a number of occurences of `pair` in
     /// the whole corpus.
-    std::pair<size_t, size_t> operator[](std::pair<T, T> pair) const {
-        if (!this->docs_counter.contains(pair)) {
-            return {0, 0};
-        }
+    std::pair<size_t, size_t> at(std::pair<T, T> pair) const {
+        // if `pair` was not in corpus
+        if (!this->docs_counter.contains(pair)) return {0, 0};
+
         return {this->docs_counter[pair], this->pairs_counter[pair]};
     }
 };

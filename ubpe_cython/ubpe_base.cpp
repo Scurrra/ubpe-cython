@@ -63,8 +63,8 @@ void UbpeBase::_rearrange_tokens_by_weight() {
 
     // buffer to sort by weight and eliminate some of them
     std::vector<std::pair<uint32_t, std::vector<uint32_t>>> buf(
-        this->tokens_backward_mapper.begin(),
-        this->tokens_backward_mapper.end());
+        this->tokens_backward_mapper.cbegin(),
+        this->tokens_backward_mapper.cend());
 
     // sort buffer
     std::sort(buf.begin(), buf.end(), [this](const auto& a, const auto& b) {
@@ -77,13 +77,10 @@ void UbpeBase::_rearrange_tokens_by_weight() {
 
     for (uint32_t i = 0; i < buf.size(); i++) {
         // skip if `i` is already pended for deletion
-        if (to_delete.contains(i)) {
-            continue;
-        }
+        if (to_delete.contains(i)) continue;
+
         // if all values for deletion are already found
-        if (to_delete.size() >= to_delete_quantity) {
-            break;
-        }
+        if (to_delete.size() >= to_delete_quantity) break;
 
         to_delete.insert(i);
 
@@ -98,8 +95,11 @@ void UbpeBase::_rearrange_tokens_by_weight() {
     }
 
     // make `to_delete` contain actual tokens
-    std::for_each(to_delete.begin(), to_delete.end(),
-                  [&buf](const auto& element) { return buf[element].first; });
+    std::set<uint32_t> to_delete_buf;
+    std::transform(to_delete.cbegin(), to_delete.cend(),
+                   std::inserter(to_delete_buf, to_delete_buf.end()),
+                   [&buf](const auto& element) { return buf[element].first; });
+    to_delete = std::move(to_delete_buf);
 
     // reverse `buf`
     std::reverse(buf.begin(), buf.end());

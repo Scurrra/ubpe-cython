@@ -5,6 +5,7 @@
 
 namespace ubpe {
 
+/// Classic implementation of Byte-Pair Encoding, but for general sequences.
 class UbpeClassic : protected UbpeBase {
    private:
     std::vector<std::vector<uint32_t>> pairs;

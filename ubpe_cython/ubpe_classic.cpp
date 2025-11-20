@@ -65,12 +65,12 @@ void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
             auto good_to_add = true;
             for (const auto& [pair1, _] : token_pairs) {
                 good_to_add =
-                    pairs_counter[{pair2.second, pair1.first}].second < freq2 &&
-                    pairs_counter[{pair1.second, pair2.first}].second < freq2;
+                    pairs_counter.at({pair2.second, pair1.first}).second <
+                        freq2 &&
+                    pairs_counter.at({pair1.second, pair2.first}).second <
+                        freq2;
 
-                if (!good_to_add) {
-                    break;
-                }
+                if (!good_to_add) break;
             }
             // finally add candidate if it is good
             if (good_to_add) {
@@ -83,8 +83,8 @@ void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
         std::map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
         for (const auto& [pair, _] : token_pairs) {
             max_token++;
-            this->tokens_weights[max_token] =
-                std::log((1 + corpus.size()) / (1 + pairs_counter[pair].first));
+            this->tokens_weights[max_token] = std::log(
+                (1 + corpus.size()) / (1 + pairs_counter.at(pair).first));
             this->tokens_backward_mapper[max_token] = {pair.first, pair.second};
             this->tokens_forward_mapper[{pair.first, pair.second}] = max_token;
             sub[pair.first] = {pair.second, max_token};
@@ -111,6 +111,13 @@ void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
 std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic::encode(
     std::vector<uint32_t> doc) const {
     assert((this->pairs.size() == 0) && "Tokenizer was not fitted");
+    assert((this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0 ||
+            this->tokens_weights.size() == 0) &&
+           "Can not rearrange non-fitted tokenizer");
+
+    // handle empty sequence
+    if (doc.size() == 0) return {};
 
     // recursively encode
     while (true) {
@@ -125,14 +132,10 @@ std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic::encode(
 
         // find the first most valueable pair of tokens in the `doc`
         auto i = 0;
-        while (i < this->pairs.size() && !pairs.contains(this->pairs[i])) {
-            i++;
-        }
+        while (i < this->pairs.size() && !pairs.contains(this->pairs[i])) i++;
 
         // if `i` is out of bounds, encoding is completed
-        if (i == this->pairs.size()) {
-            break;
-        }
+        if (i == this->pairs.size()) break;
 
         // pairs of old tokens to be substituted
         std::vector<std::vector<uint32_t>> tokens = {this->pairs[i]};
@@ -151,8 +154,8 @@ std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic::encode(
             // that can be interrapted by tokens that do not present in `doc`
             if (pairs.contains(this->pairs[j])) {
                 tokens.emplace_back(this->pairs[j]);
-                current_set.insert(this->pairs[j].begin(),
-                                   this->pairs[j].end());
+                current_set.insert(this->pairs[j].cbegin(),
+                                   this->pairs[j].cend());
             }
         }
 
@@ -181,9 +184,8 @@ std::vector<uint32_t> UbpeClassic::decode(std::vector<uint32_t> tokens) const {
             this->tokens_weights.size() == 0) &&
            "Can not rearrange non-fitted tokenizer");
 
-    if (tokens.size() == 0) {
-        return {};
-    }
+    // handle empty sequence
+    if (tokens.size() == 0) return {};
 
     // future decoded sequence
     std::vector<uint32_t> document;

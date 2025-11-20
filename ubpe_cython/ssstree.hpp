@@ -53,7 +53,7 @@ class SSSTreeNode {
 
             // split vertex in two
             auto split = SSSTreeNode<K, V>(
-                K(this->key.begin() + i, this->key.end()), this->value);
+                K(this->key.cbegin() + i, this->key.cend()), this->value);
             split.children = std::move(this->children);
             this->children = {split};
             this->key = key;
@@ -61,7 +61,7 @@ class SSSTreeNode {
         }
         // part of a key is in the tree
         else {
-            key = K(key.begin() + i, key.end());
+            key = K(key.cbegin() + i, key.cend());
             auto child = SSSTreeNode<K, V>(key, value);
 
             // the new key starts with the old one
@@ -77,10 +77,10 @@ class SSSTreeNode {
             // the new and the old keys have common first i elements
             else {
                 auto split = SSSTreeNode<K, V>(
-                    K(this->key.begin() + i, this->key.end()), this->value);
+                    K(this->key.cbegin() + i, this->key.cend()), this->value);
                 split.children = std::move(this->children);
                 this->children = {split, child};
-                this->key = K(this->key.begin(), this->key.begin() + i);
+                this->key = K(this->key.cbegin(), this->key.cbegin() + i);
                 this->value = std::nullopt;
             }
 
@@ -95,10 +95,10 @@ class SSSTreeNode {
         // `key` matched
         if (key == this->key) return this->value;
         // key in the node is a prefix in `key`
-        if (std::vector(key.begin(), key.begin() + this->key.size()) ==
+        if (std::vector(key.cbegin(), key.cbegin() + this->key.size()) ==
             this->key) {
             // delete the prefix
-            key = std::vector(key.begin() + this->key.size(), key.end());
+            key = std::vector(key.cbegin() + this->key.size(), key.end());
             // search which child contains the rest of `key`
             for (const auto& child : this->children) {
                 // if child's key start with the same value as `key`
@@ -127,8 +127,8 @@ class SSSTreeNode {
             return stack.size() > 0 ? stack.back() : std::nullopt;
         }
         // check if the node's key is in the desired place in `key`
-        if (std::vector(key.begin() + start,
-                        key.begin() + start + this->key.size()) == this->key) {
+        if (std::vector(key.cbegin() + start,
+                        key.cbegin() + start + this->key.size()) == this->key) {
             // add key-value pair to the stack, even if its value is null
             stack.emplace_back({this->key, this->value});
             // move the start in `key` forward
@@ -227,8 +227,9 @@ class SSSTree {
                 std::remove_if(stack.begin(), stack.end(),
                                [&, sub_key = K()](auto& element) mutable {
                                    // extend the key with values of the new part
-                                   sub_key.insert(element.first.begin(),
-                                                  element.first.end());
+                                   sub_key.insert(sub_key.end(),
+                                                  element.first.cbegin(),
+                                                  element.first.cend());
                                    // update the key
                                    element.first = sub_key;
                                    // delete if the value is null

@@ -24,10 +24,9 @@ void _replace_token_pairs(
         vec[++left] = vec[++right];
         // here `vec[left] == vec[right]`
         // so if `vec[right]` is not a potential start of a pair to be replaced
-        if (!sub.contains(vec[right])) {
-            // we are done for this index
-            continue;
-        }
+        // we are done for this index
+        if (!sub.contains(vec[right])) continue;
+
         // else check `vec[right+1]`
         if (vec[right + 1] == sub.at(vec[right]).first) {
             // replace `vec[left]` with the new value
