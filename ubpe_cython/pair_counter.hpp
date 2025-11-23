@@ -19,8 +19,8 @@ class PairCounter {
 
    public:
     PairCounter() = default;
-    PairCounter(std::vector<T>& doc) { this->update(doc); }
-    PairCounter(std::vector<std::vector<T>>& corpus) {
+    PairCounter(const std::vector<T>& doc) { this->update(doc); }
+    PairCounter(const std::vector<std::vector<T>>& corpus) {
         for (const auto& doc : corpus) {
             this->update(doc);
         }
@@ -34,7 +34,7 @@ class PairCounter {
 
     /// @brief Update PairCounter instance with adjacent pairs in `doc`;
     /// @param doc Flat vector.
-    void update(std::vector<T>& doc) {
+    void update(const std::vector<T>& doc) {
         // update with adjacent pairs
         for (auto i = 0; i < doc.size() - 1; i++) {
             this->pairs_counter[{doc[i], doc[i + 1]}]++;
@@ -103,11 +103,11 @@ class PairCounter {
     /// @returns Pair of counts where `.first` is a number of docs the `pair`
     /// occured in corpus and `.second` is a number of occurences of `pair` in
     /// the whole corpus.
-    std::pair<size_t, size_t> operator[](std::pair<T, T> pair) const {
+    std::pair<size_t, size_t> operator()(const std::pair<T, T>& pair) const {
         // if `pair` was not in corpus
         if (!this->docs_counter.contains(pair)) return {0, 0};
 
-        return {this->docs_counter[pair], this->pairs_counter[pair]};
+        return {this->docs_counter.at(pair), this->pairs_counter.at(pair)};
     }
 };
 }  // namespace ubpe

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <utility>
@@ -17,9 +18,19 @@ concept CanBeKey = std::ranges::range<T> &&
                    !std::is_same_v<std::remove_cvref_t<T>, std::u16string> &&
                    !std::is_same_v<std::remove_cvref_t<T>, std::u32string>;
 
+/// @brief SubSequence Search Tree.
+///
+/// Well, it's a version of an optimized trie but with an efficient search
+/// operator `()` which return not the full match for the `key`, but all
+/// non-null entries which keys are prefixes in the `key`.
+template <CanBeKey K, typename V>
+class SSSTree;
+
 /// @brief SubSequence Search Tree node.
 template <CanBeKey K, typename V>
 class SSSTreeNode {
+    friend class SSSTree<K, V>;
+
    private:
     K key;
     std::optional<V> value;
@@ -38,7 +49,7 @@ class SSSTreeNode {
     /// @param element Key-value pair.
     /// @returns The new tree node.
     SSSTreeNode operator+(std::pair<K, V> element) {
-        const auto& [key, value] = element;
+        auto [key, value] = element;
 
         // find common prefix for the node's key and `key`
         auto i = 0;
@@ -53,7 +64,7 @@ class SSSTreeNode {
                 if (!this->value) this->value = value;
                 // current node is returned with the old value if it was present
                 // or with the new value if the node was empty
-                return this;
+                return *this;
             }
 
             // split vertex in two
@@ -63,34 +74,35 @@ class SSSTreeNode {
             this->children = {split};
             this->key = key;
             this->value = value;
+
+            return *this;
         }
+
         // part of a key is in the tree
-        else {
-            key = K(key.cbegin() + i, key.cend());
-            auto child = SSSTreeNode<K, V>(key, value);
+        key = K(key.cbegin() + i, key.cend());
+        auto child = SSSTreeNode<K, V>(key, value);
 
-            // the new key starts with the old one
-            if (i == this->key.size()) {
-                for (auto& child : this->children) {
-                    if (child.key[0] == key[0]) {
-                        return child + std::make_pair(key, value);
-                    }
+        // the new key starts with the old one
+        if (i == this->key.size()) {
+            for (auto& child : this->children) {
+                if (child.key[0] == key[0]) {
+                    return child + std::make_pair(key, value);
                 }
-
-                this->children.emplace_back(child);
-            }
-            // the new and the old keys have common first i elements
-            else {
-                auto split = SSSTreeNode<K, V>(
-                    K(this->key.cbegin() + i, this->key.cend()), this->value);
-                split.children = std::move(this->children);
-                this->children = {split, child};
-                this->key = K(this->key.cbegin(), this->key.cbegin() + i);
-                this->value = std::nullopt;
             }
 
-            return child;
+            this->children.emplace_back(child);
         }
+        // the new and the old keys have common first i elements
+        else {
+            auto split = SSSTreeNode<K, V>(
+                K(this->key.cbegin() + i, this->key.cend()), this->value);
+            split.children = std::move(this->children);
+            this->children = {split, child};
+            this->key = K(this->key.cbegin(), this->key.cbegin() + i);
+            this->value = std::nullopt;
+        }
+
+        return child;
     }
 
     /// @brief Get the value for `key`.
@@ -100,10 +112,9 @@ class SSSTreeNode {
         // `key` matched
         if (key == this->key) return this->value;
         // key in the node is a prefix in `key`
-        if (std::vector(key.cbegin(), key.cbegin() + this->key.size()) ==
-            this->key) {
+        if (K(key.cbegin(), key.cbegin() + this->key.size()) == this->key) {
             // delete the prefix
-            key = std::vector(key.cbegin() + this->key.size(), key.cend());
+            key = K(key.cbegin() + this->key.size(), key.cend());
             // search which child contains the rest of `key`
             for (const auto& child : this->children) {
                 // if child's key start with the same value as `key`
@@ -124,19 +135,20 @@ class SSSTreeNode {
     /// @param start The position in key to start lookup with.
     /// @returns A value in the tree which key is the longest prefix of `key`
     /// present in the tree.
-    std::optional<V> operator()(K& key, std::vector<std::pair<K, V>>& stack,
-                                size_t start = 0) const {
+    std::optional<V> operator()(
+        const K& key, std::vector<std::pair<K, std::optional<V>>>& stack,
+        size_t start = 0) const {
         assert((start < key.size()) || "`start` is out of range");
         // check if the untraced part of `key` is shorter than the key in the
         // node
         if (start + this->key.size() > key.size()) {
-            return stack.size() > 0 ? stack.back() : std::nullopt;
+            return stack.size() > 0 ? stack.back().second : std::nullopt;
         }
         // check if the node's key is in the desired place in `key`
-        if (std::vector(key.cbegin() + start,
-                        key.cbegin() + start + this->key.size()) == this->key) {
+        if (K(key.cbegin() + start, key.cbegin() + start + this->key.size()) ==
+            this->key) {
             // add key-value pair to the stack, even if its value is null
-            stack.emplace_back({this->key, this->value});
+            stack.emplace_back(std::make_pair(this->key, this->value));
             // move the start in `key` forward
             start += this->key.size();
             // search which child contains the rest of `key`
@@ -149,15 +161,10 @@ class SSSTreeNode {
             }
         }
         // in case the key is not in the tree
-        return stack.size() > 0 ? stack.back() : std::nullopt;
+        return stack.size() > 0 ? stack.back().second : std::nullopt;
     }
 };
 
-/// @brief SubSequence Search Tree.
-///
-/// Well, it's a version of an optimized trie but with an efficient search
-/// operator `()` which return not the full match for the `key`, but all
-/// non-null entries which keys are prefixes in the `key`.
 template <CanBeKey K, typename V>
 class SSSTree {
    private:
@@ -190,11 +197,9 @@ class SSSTree {
             i++;
         }
         // if no child is able, add a new one
-        if (i == this->children.size()) {
-            auto child = SSSTreeNode<K, V>(element.first, element.second);
-            this->children.emplace_back(child);
-            return child;
-        }
+        auto child = SSSTreeNode<K, V>(element.first, element.second);
+        this->children.emplace_back(child);
+        return child;
     }
 
     /// @brief Get the value for `key`.
@@ -221,7 +226,8 @@ class SSSTree {
     /// @param key Key for lookup.
     /// @returns A vector of key-value pairs in the tree where keys are prefixes
     /// of `key` present in the tree.
-    std::vector<std::pair<K, V>> operator()(K key, size_t start = 0) const {
+    std::vector<std::pair<K, V>> operator()(const K& key,
+                                            size_t start = 0) const {
         assert((start < key.size()) || "`start` is out of range");
         // search which child may contain `key`
         auto i = 0;
@@ -229,24 +235,31 @@ class SSSTree {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == key[start]) {
                 // create empty stack
-                std::vector<std::pair<K, V>> stack;
+                std::vector<std::pair<K, std::optional<V>>> stack;
                 // trace the tree
                 auto _ = this->children[i](key, stack, start);
                 // remove null values from the stack and accumulate key's parts
                 // at the same time
-                std::remove_if(stack.begin(), stack.end(),
-                               [&, sub_key = K()](auto& element) mutable {
-                                   // extend the key with values of the new part
-                                   sub_key.insert(sub_key.end(),
-                                                  element.first.cbegin(),
-                                                  element.first.cend());
-                                   // update the key
-                                   element.first = sub_key;
-                                   // delete if the value is null
-                                   return !element.second.has_value();
+                std::erase_if(stack, [&, sub_key = K()](auto& element) mutable {
+                    // extend the key with values of the new part
+                    sub_key.insert(sub_key.end(), element.first.cbegin(),
+                                   element.first.cend());
+                    // update the key
+                    element.first = sub_key;
+                    // delete if the value is null
+                    return !element.second.has_value();
+                });
+
+                std::vector<std::pair<K, V>> prefixes;
+                prefixes.reserve(stack.size());
+                std::transform(stack.cbegin(), stack.cend(),
+                               std::back_inserter(prefixes),
+                               [](const auto& prefix) -> std::pair<K, V> {
+                                   return {prefix.first, prefix.second.value()};
                                });
-                // return the stack
-                return stack;
+
+                // return the prefixes
+                return prefixes;
             }
             // move to the next child
             i++;

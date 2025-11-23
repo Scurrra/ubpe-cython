@@ -67,14 +67,14 @@ void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
             auto good_to_add = true;
             for (const auto& [pair1, _] : token_pairs) {
                 good_to_add =
-                    pairs_counter[{pair2.second, pair1.first}].second < freq2 &&
-                    pairs_counter[{pair1.second, pair2.first}].second < freq2;
+                    pairs_counter({pair2.second, pair1.first}).second < freq2 &&
+                    pairs_counter({pair1.second, pair2.first}).second < freq2;
 
                 if (!good_to_add) break;
             }
             // finally add candidate if it is good
             if (good_to_add) {
-                token_pairs.push_back({pair2, freq2});
+                token_pairs.emplace_back(std::make_pair(pair2, freq2));
                 current_set.insert({pair2.first, pair2.second});
             }
         }
@@ -84,14 +84,14 @@ void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
         for (const auto& [pair, _] : token_pairs) {
             max_token++;
             this->tokens_weights[max_token] =
-                std::log((1 + corpus.size()) / (1 + pairs_counter[pair].first));
+                std::log((1 + corpus.size()) / (1 + pairs_counter(pair).first));
             this->tokens_backward_mapper[max_token] = {pair.first, pair.second};
             this->tokens_forward_mapper[{pair.first, pair.second}] = max_token;
             sub[pair.first] = {pair.second, max_token};
         }
 
         // update `corpus` with new tokens
-        std::for_each(corpus.begin(), corpus.end(), [this, sub](auto& doc) {
+        std::for_each(corpus.begin(), corpus.end(), [this, &sub](auto& doc) {
             _replace_token_pairs(doc, sub);
         });
     }
@@ -109,7 +109,7 @@ void UbpeClassic::fit(std::vector<std::vector<uint32_t>> corpus,
 }
 
 std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic::encode(
-    std::vector<uint32_t> doc, uint8_t top_n) const {
+    std::vector<uint32_t> doc, uint8_t) const {
     assert((this->pairs.size() == 0) && "Tokenizer was not fitted");
     assert((this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0 ||
@@ -183,7 +183,7 @@ std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic::encode(
     return {{doc, weight}};
 }
 
-std::vector<uint32_t> UbpeClassic::decode(std::vector<uint32_t> tokens) const {
+std::vector<uint32_t> UbpeClassic::decode(const std::vector<uint32_t>& tokens) const {
     assert((this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0 ||
             this->tokens_weights.size() == 0) &&

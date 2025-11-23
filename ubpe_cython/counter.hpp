@@ -16,8 +16,8 @@ class Counter {
 
    public:
     Counter() = default;
-    Counter(std::vector<T>& doc) { this->update(doc); }
-    Counter(std::vector<std::vector<T>>& corpus) {
+    Counter(const std::vector<T>& doc) { this->update(doc); }
+    Counter(const std::vector<std::vector<T>>& corpus) {
         for (const auto& doc : corpus) {
             this->update(doc);
         }
@@ -31,7 +31,7 @@ class Counter {
 
     /// @brief Update PairCounter instance with adjacent pairs in `doc`;
     /// @param doc Flat vector.
-    void update(std::vector<T>& doc) {
+    void update(const std::vector<T>& doc) {
         for (const auto& element : doc) {
             this->counter[element]++;
         }

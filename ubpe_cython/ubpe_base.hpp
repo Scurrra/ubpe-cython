@@ -78,7 +78,7 @@ class UbpeBase {
     /// @brief Decode a vector of `tokens` with the fitted tokenizer.
     /// @param tokens An encoded sequence of tokens to decode.
     /// @return Decoded document.
-    virtual std::vector<uint32_t> decode(std::vector<uint32_t>) const = 0;
+    virtual std::vector<uint32_t> decode(const std::vector<uint32_t>&) const = 0;
 };
 
 }  // namespace ubpe
