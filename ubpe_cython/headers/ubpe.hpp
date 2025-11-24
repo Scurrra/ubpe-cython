@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "ssstree.hpp"
+#include "../include/ssstree.hpp"
 #include "ubpe_base.hpp"
 
 namespace ubpe {

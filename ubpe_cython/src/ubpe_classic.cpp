@@ -1,4 +1,4 @@
-#include "ubpe_classic.hpp"
+#include "../headers/ubpe_classic.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -10,9 +10,9 @@
 #include <set>
 #include <vector>
 
-#include "counter.hpp"
-#include "pair_counter.hpp"
-#include "utils.hpp"
+#include "../include/counter.hpp"
+#include "../include/pair_counter.hpp"
+#include "../include/utils.hpp"
 
 namespace ubpe {
 
