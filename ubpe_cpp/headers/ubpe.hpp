@@ -11,15 +11,19 @@ namespace ubpe {
 
 /// Universal Byte-Pair Encoding, that provides many options of encodings for
 /// the document.
-class Ubpe : protected UbpeBase {
+template <DocumentT T>
+class Ubpe : protected UbpeBase<T> {
    private:
     SSSTree<std::vector<uint32_t>, uint32_t> lookup;
 
    public:
+    using TokenType = typename Ubpe<T>::TokenType;
+    using DocType = typename Ubpe<T>::DocType;
+
     Ubpe(uint32_t, uint32_t);
-    Ubpe(uint32_t, uint32_t, std::map<uint32_t, uint32_t>);
-    Ubpe(uint32_t, uint32_t, std::map<uint32_t, uint32_t>,
-         std::map<uint32_t, uint32_t>,
+    Ubpe(uint32_t, uint32_t, std::map<TokenType, uint32_t>);
+    Ubpe(uint32_t, uint32_t, std::map<TokenType, uint32_t>,
+         std::map<uint32_t, TokenType>,
          std::map<std::vector<uint32_t>, uint32_t>,
          std::map<uint32_t, std::vector<uint32_t>>, std::map<uint32_t, float>);
     Ubpe(const Ubpe&) = default;
@@ -28,13 +32,12 @@ class Ubpe : protected UbpeBase {
     Ubpe& operator=(Ubpe&&) = default;
     ~Ubpe() = default;
 
-    void fit(std::vector<std::vector<uint32_t>>, uint32_t = 50,
-             bool = true) override;
+    void fit(const std::vector<DocType>&, uint32_t = 50, bool = true) override;
 
     std::vector<std::pair<std::vector<uint32_t>, float>> encode(
-        std::vector<uint32_t>, uint8_t = 1) const override;
+        const DocType&, uint8_t = 1) const override;
 
-    std::vector<uint32_t> decode(const std::vector<uint32_t>&) const override;
+    DocType decode(const std::vector<uint32_t>&) const override;
 };
 
 }  // namespace ubpe

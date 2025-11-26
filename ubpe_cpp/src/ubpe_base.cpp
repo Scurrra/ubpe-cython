@@ -10,19 +10,22 @@
 
 namespace ubpe {
 
-UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size)
+template <DocumentT T>
+UbpeBase<T>::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size)
+    requires std::convertible_to<uint32_t, TokenType>
     : n_tokens(n_tokens), alphabet_size(alphabet_size) {
     std::generate_n(
         std::inserter(this->alphabet, this->alphabet.end()), alphabet_size,
-        [i = 0]() mutable -> std::pair<uint32_t, uint32_t> { return {i, i}; });
+        [i = 0]() mutable -> std::pair<TokenType, uint32_t> { return {i, i}; });
     std::generate_n(
         std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
         alphabet_size,
-        [i = 0]() mutable -> std::pair<uint32_t, uint32_t> { return {i, i}; });
+        [i = 0]() mutable -> std::pair<uint32_t, TokenType> { return {i, i}; });
 }
 
-UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
-                   std::map<uint32_t, uint32_t> alphabet)
+template <DocumentT T>
+UbpeBase<T>::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
+                      std::map<TokenType, uint32_t> alphabet)
     : n_tokens(n_tokens), alphabet_size(alphabet_size) {
     assert((alphabet_size == alphabet.size()) &&
            "Provided `alphabet` should be of size `alphabet_size`.");
@@ -35,10 +38,11 @@ UbpeBase::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
         });
 }
 
-UbpeBase::UbpeBase(
+template <DocumentT T>
+UbpeBase<T>::UbpeBase(
     uint32_t n_tokens, uint32_t alphabet_size,
-    std::map<uint32_t, uint32_t> alphabet,
-    std::map<uint32_t, uint32_t> inverse_alphabet,
+    std::map<TokenType, uint32_t> alphabet,
+    std::map<uint32_t, TokenType> inverse_alphabet,
     std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
     std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
     std::map<uint32_t, float> tokens_weights)
@@ -55,7 +59,29 @@ UbpeBase::UbpeBase(
            "`alphabet` and `inverse_alphabet` should be of the same size.");
 }
 
-void UbpeBase::_rearrange_tokens_by_weight() {
+template <DocumentT T>
+std::vector<uint32_t> UbpeBase<T>::_doc_to_vec(const DocType& doc) {
+    std::vector<uint32_t> tokens;
+    tokens.reserve(doc.size());
+    std::transform(
+        doc.cbegin(), doc.cend(), std::back_inserter(tokens),
+        [this](const auto& element) { return this->alphabet.at(element); });
+    return tokens;
+}
+
+template <DocumentT T>
+UbpeBase<T>::DocType UbpeBase<T>::_vec_to_doc(
+    const std::vector<uint32_t>& tokens) {
+    DocType doc;
+    doc.reserve(tokens.size());
+    std::transform(
+        tokens.cbegin(), tokens.cend(), std::back_inserter(doc),
+        [this](const auto& token) { return this->inverse_alphabet.at(token); });
+    return doc;
+}
+
+template <DocumentT T>
+void UbpeBase<T>::_rearrange_tokens_by_weight() {
     assert((this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0 ||
             this->tokens_weights.size() == 0) &&
@@ -88,8 +114,8 @@ void UbpeBase::_rearrange_tokens_by_weight() {
         // check some rare condition when found token is present in more
         // valueable subsequence of tokens for substitution
         for (uint32_t j = i + 1; j < buf.size(); j++) {
-            if (auto it = std::find(buf[j].second.cbegin(), buf[j].second.cend(),
-                                    buf[i].first);
+            if (auto it = std::find(buf[j].second.cbegin(),
+                                    buf[j].second.cend(), buf[i].first);
                 it != buf[j].second.end()) {
                 to_delete.insert(j);
             }
@@ -160,23 +186,32 @@ void UbpeBase::_rearrange_tokens_by_weight() {
     this->tokens_forward_mapper = std::move(tokens_forward_mapper);
 }
 
-std::map<std::vector<uint32_t>, uint32_t> UbpeBase::getForwardMapper() const {
+template <DocumentT T>
+std::map<std::vector<uint32_t>, uint32_t> UbpeBase<T>::getForwardMapper()
+    const {
     return this->tokens_forward_mapper;
 }
 
-std::map<uint32_t, std::vector<uint32_t>> UbpeBase::getBackwardMapper() const {
+template <DocumentT T>
+std::map<uint32_t, std::vector<uint32_t>> UbpeBase<T>::getBackwardMapper()
+    const {
     return this->tokens_backward_mapper;
 }
 
-std::map<uint32_t, float> UbpeBase::getTokensWeights() const {
+template <DocumentT T>
+std::map<uint32_t, float> UbpeBase<T>::getTokensWeights() const {
     return this->tokens_weights;
 }
 
-std::map<uint32_t, uint32_t> UbpeBase::getAlphabet() const {
+template <DocumentT T>
+std::map<typename UbpeBase<T>::TokenType, uint32_t> UbpeBase<T>::getAlphabet()
+    const {
     return this->alphabet;
 }
 
-std::map<uint32_t, uint32_t> UbpeBase::getInverseAlphabet() const {
+template <DocumentT T>
+std::map<uint32_t, typename UbpeBase<T>::TokenType>
+UbpeBase<T>::getInverseAlphabet() const {
     return this->inverse_alphabet;
 }
 }  // namespace ubpe

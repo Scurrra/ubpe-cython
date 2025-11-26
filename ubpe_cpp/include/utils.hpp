@@ -3,10 +3,17 @@
 
 #include <cstdint>
 #include <map>
+#include <string>
 #include <utility>
 #include <vector>
 
 namespace ubpe {
+
+/// @brief Concept of type that can be a document or a key in a `ubpe::SSSTree`.
+template <typename T>
+concept DocumentT = std::ranges::range<T> ||
+                   std::is_same_v<std::remove_cvref_t<T>,
+                                  std::basic_string<typename T::value_type>>;
 
 /// @brief Function for replacing pair of adjacent tokens in a list with a new
 /// one.

@@ -3,17 +3,24 @@
 
 #include <cstdint>
 #include <map>
+#include <type_traits>
 #include <vector>
+
+#include "../include/utils.hpp"
 
 namespace ubpe {
 
+template <DocumentT T>
 class UbpeBase {
    protected:
+    using DocType = typename std::remove_cvref_t<T>;
+    using TokenType = typename DocType::value_type;
+
     uint32_t n_tokens;
     uint32_t alphabet_size;
 
-    std::map<uint32_t, uint32_t> alphabet;
-    std::map<uint32_t, uint32_t> inverse_alphabet;
+    std::map<TokenType, uint32_t> alphabet;
+    std::map<uint32_t, TokenType> inverse_alphabet;
 
     std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper;
     std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper;
@@ -25,11 +32,22 @@ class UbpeBase {
     /// `this.n_tokens`.
     void _rearrange_tokens_by_weight();
 
+    /// @brief Convert document of `Ubpe<T>::DocType` to vector of base tokens.
+    /// @param doc Document, i.e. data of type `Ubpe<T>::DocType`.
+    /// @return Vector of base tokens.
+    std::vector<uint32_t> _doc_to_vec(const DocType& doc);
+
+    /// @brief Convert vector of base tokens to document of `Ubpe<T>::DocType`.
+    /// @param tokens Vector of base tokens.
+    /// @return Document, i.e. data of type `Ubpe<T>::DocType`.
+    DocType _vec_to_doc(const std::vector<uint32_t>& tokens);
+
    public:
-    UbpeBase(uint32_t, uint32_t);
-    UbpeBase(uint32_t, uint32_t, std::map<uint32_t, uint32_t>);
-    UbpeBase(uint32_t, uint32_t, std::map<uint32_t, uint32_t>,
-             std::map<uint32_t, uint32_t>,
+    UbpeBase(uint32_t, uint32_t)
+        requires std::convertible_to<uint32_t, TokenType>;
+    UbpeBase(uint32_t, uint32_t, std::map<TokenType, uint32_t>);
+    UbpeBase(uint32_t, uint32_t, std::map<TokenType, uint32_t>,
+             std::map<uint32_t, TokenType>,
              std::map<std::vector<uint32_t>, uint32_t>,
              std::map<uint32_t, std::vector<uint32_t>>,
              std::map<uint32_t, float>);
@@ -53,32 +71,33 @@ class UbpeBase {
 
     /// @brief Get alphabet mapping.
     /// @return Base alphabet mapping.
-    std::map<uint32_t, uint32_t> getAlphabet() const;
+    std::map<TokenType, uint32_t> getAlphabet() const;
 
     /// @brief Get inverse alphabet mapping.
     /// @return Inverse abse alphabet mapping.
-    std::map<uint32_t, uint32_t> getInverseAlphabet() const;
+    std::map<uint32_t, TokenType> getInverseAlphabet() const;
 
     /// @brief Fit tokenizer with `corpus`.
-    /// @param corpus Data to fit tokenizer with.
+    /// @param docs Data to fit tokenizer with.
     /// @param n_candidates Number of most popular pairs of adjacent tokens to
     /// be substituted with new ones; ignored in `UbpeClassic`.
     /// @param rearrange_tokens If tokens should be rearranged to make tokens
     /// with smaller numbers be more valueable.
-    virtual void fit(std::vector<std::vector<uint32_t>>, uint32_t = 50,
+    virtual void fit(const std::vector<DocType>&, uint32_t = 50,
                      bool = true) = 0;
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param document Sequence of basic tokens to encode.
-    /// @param top_n How many candidate ecoding to return; ignored in `UbpeClassic`.
+    /// @param top_n How many candidate ecoding to return; ignored in
+    /// `UbpeClassic`.
     /// @return List of encoded documents with weights.
     virtual std::vector<std::pair<std::vector<uint32_t>, float>> encode(
-        std::vector<uint32_t>, uint8_t = 1) const = 0;
+        const DocType&, uint8_t = 1) const = 0;
 
     /// @brief Decode a vector of `tokens` with the fitted tokenizer.
     /// @param tokens An encoded sequence of tokens to decode.
     /// @return Decoded document.
-    virtual std::vector<uint32_t> decode(const std::vector<uint32_t>&) const = 0;
+    virtual DocType decode(const std::vector<uint32_t>&) const = 0;
 };
 
 }  // namespace ubpe
