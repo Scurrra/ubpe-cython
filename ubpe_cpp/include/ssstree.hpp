@@ -12,11 +12,9 @@
 namespace ubpe {
 
 template <typename T>
-concept CanBeKey = std::ranges::range<T> &&
-                   !std::is_same_v<std::remove_cvref_t<T>, std::string> &&
-                   !std::is_same_v<std::remove_cvref_t<T>, std::wstring> &&
-                   !std::is_same_v<std::remove_cvref_t<T>, std::u16string> &&
-                   !std::is_same_v<std::remove_cvref_t<T>, std::u32string>;
+concept CanBeKey = std::ranges::range<T> ||
+                   std::is_same_v<std::remove_cvref_t<T>,
+                                  std::basic_string<typename T::value_type>>;
 
 /// @brief SubSequence Search Tree.
 ///
