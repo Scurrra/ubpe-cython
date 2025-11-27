@@ -3,19 +3,15 @@
 
 #include <cstdint>
 #include <map>
-#include <type_traits>
 #include <vector>
 
 #include "../include/utils.hpp"
 
 namespace ubpe {
 
-template <DocumentT T>
+template <DocumentT DocType, typename TokenType = DocType::value_type>
 class UbpeBase {
    protected:
-    using DocType = typename std::remove_cvref_t<T>;
-    using TokenType = typename DocType::value_type;
-
     uint32_t n_tokens;
     uint32_t alphabet_size;
 
@@ -32,15 +28,18 @@ class UbpeBase {
     /// `this.n_tokens`.
     void _rearrange_tokens_by_weight();
 
-    /// @brief Convert document of `Ubpe<T>::DocType` to vector of base tokens.
-    /// @param doc Document, i.e. data of type `Ubpe<T>::DocType`.
+    /// @brief Convert document of `Ubpe<DocType, TokenType>::DocType` to vector
+    /// of base tokens.
+    /// @param doc Document, i.e. data of type `Ubpe<DocType,
+    /// TokenType>::DocType`.
     /// @return Vector of base tokens.
-    std::vector<uint32_t> _doc_to_vec(const DocType& doc);
+    std::vector<uint32_t> _doc_to_vec(const DocType& doc) const;
 
-    /// @brief Convert vector of base tokens to document of `Ubpe<T>::DocType`.
+    /// @brief Convert vector of base tokens to document of `Ubpe<DocType,
+    /// TokenType>::DocType`.
     /// @param tokens Vector of base tokens.
-    /// @return Document, i.e. data of type `Ubpe<T>::DocType`.
-    DocType _vec_to_doc(const std::vector<uint32_t>& tokens);
+    /// @return Document, i.e. data of type `Ubpe<DocType, TokenType>::DocType`.
+    DocType _vec_to_doc(const std::vector<uint32_t>& tokens) const;
 
    public:
     UbpeBase(uint32_t, uint32_t)

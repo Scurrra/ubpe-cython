@@ -6,15 +6,12 @@
 namespace ubpe {
 
 /// Classic implementation of Byte-Pair Encoding, but for general sequences.
-template <DocumentT T>
-class UbpeClassic : protected UbpeBase<T> {
+template <DocumentT DocType, typename TokenType = DocType::value_type>
+class UbpeClassic : protected UbpeBase<DocType> {
    private:
     std::vector<std::vector<uint32_t>> pairs;
 
    public:
-    using TokenType = typename UbpeClassic<T>::TokenType;
-    using DocType = typename UbpeClassic<T>::DocType;
-
     UbpeClassic(uint32_t, uint32_t);
     UbpeClassic(uint32_t, uint32_t, std::map<TokenType, uint32_t>);
     UbpeClassic(uint32_t, uint32_t, std::map<TokenType, uint32_t>,

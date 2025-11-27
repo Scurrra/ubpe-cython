@@ -10,8 +10,9 @@
 
 namespace ubpe {
 
-template <DocumentT T>
-UbpeBase<T>::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size)
+template <DocumentT DocType, typename TokenType>
+UbpeBase<DocType, TokenType>::UbpeBase(uint32_t n_tokens,
+                                       uint32_t alphabet_size)
     requires std::convertible_to<uint32_t, TokenType>
     : n_tokens(n_tokens), alphabet_size(alphabet_size) {
     std::generate_n(
@@ -23,9 +24,10 @@ UbpeBase<T>::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size)
         [i = 0]() mutable -> std::pair<uint32_t, TokenType> { return {i, i}; });
 }
 
-template <DocumentT T>
-UbpeBase<T>::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
-                      std::map<TokenType, uint32_t> alphabet)
+template <DocumentT DocType, typename TokenType>
+UbpeBase<DocType, TokenType>::UbpeBase(uint32_t n_tokens,
+                                       uint32_t alphabet_size,
+                                       std::map<TokenType, uint32_t> alphabet)
     : n_tokens(n_tokens), alphabet_size(alphabet_size) {
     assert((alphabet_size == alphabet.size()) &&
            "Provided `alphabet` should be of size `alphabet_size`.");
@@ -38,8 +40,8 @@ UbpeBase<T>::UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
         });
 }
 
-template <DocumentT T>
-UbpeBase<T>::UbpeBase(
+template <DocumentT DocType, typename TokenType>
+UbpeBase<DocType, TokenType>::UbpeBase(
     uint32_t n_tokens, uint32_t alphabet_size,
     std::map<TokenType, uint32_t> alphabet,
     std::map<uint32_t, TokenType> inverse_alphabet,
@@ -59,8 +61,9 @@ UbpeBase<T>::UbpeBase(
            "`alphabet` and `inverse_alphabet` should be of the same size.");
 }
 
-template <DocumentT T>
-std::vector<uint32_t> UbpeBase<T>::_doc_to_vec(const DocType& doc) {
+template <DocumentT DocType, typename TokenType>
+std::vector<uint32_t> UbpeBase<DocType, TokenType>::_doc_to_vec(
+    const DocType& doc) const {
     std::vector<uint32_t> tokens;
     tokens.reserve(doc.size());
     std::transform(
@@ -69,9 +72,9 @@ std::vector<uint32_t> UbpeBase<T>::_doc_to_vec(const DocType& doc) {
     return tokens;
 }
 
-template <DocumentT T>
-UbpeBase<T>::DocType UbpeBase<T>::_vec_to_doc(
-    const std::vector<uint32_t>& tokens) {
+template <DocumentT DocType, typename TokenType>
+DocType UbpeBase<DocType, TokenType>::_vec_to_doc(
+    const std::vector<uint32_t>& tokens) const {
     DocType doc;
     doc.reserve(tokens.size());
     std::transform(
@@ -80,8 +83,8 @@ UbpeBase<T>::DocType UbpeBase<T>::_vec_to_doc(
     return doc;
 }
 
-template <DocumentT T>
-void UbpeBase<T>::_rearrange_tokens_by_weight() {
+template <DocumentT DocType, typename TokenType>
+void UbpeBase<DocType, TokenType>::_rearrange_tokens_by_weight() {
     assert((this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0 ||
             this->tokens_weights.size() == 0) &&
@@ -186,32 +189,33 @@ void UbpeBase<T>::_rearrange_tokens_by_weight() {
     this->tokens_forward_mapper = std::move(tokens_forward_mapper);
 }
 
-template <DocumentT T>
-std::map<std::vector<uint32_t>, uint32_t> UbpeBase<T>::getForwardMapper()
-    const {
+template <DocumentT DocType, typename TokenType>
+std::map<std::vector<uint32_t>, uint32_t>
+UbpeBase<DocType, TokenType>::getForwardMapper() const {
     return this->tokens_forward_mapper;
 }
 
-template <DocumentT T>
-std::map<uint32_t, std::vector<uint32_t>> UbpeBase<T>::getBackwardMapper()
-    const {
+template <DocumentT DocType, typename TokenType>
+std::map<uint32_t, std::vector<uint32_t>>
+UbpeBase<DocType, TokenType>::getBackwardMapper() const {
     return this->tokens_backward_mapper;
 }
 
-template <DocumentT T>
-std::map<uint32_t, float> UbpeBase<T>::getTokensWeights() const {
+template <DocumentT DocType, typename TokenType>
+std::map<uint32_t, float> UbpeBase<DocType, TokenType>::getTokensWeights()
+    const {
     return this->tokens_weights;
 }
 
-template <DocumentT T>
-std::map<typename UbpeBase<T>::TokenType, uint32_t> UbpeBase<T>::getAlphabet()
+template <DocumentT DocType, typename TokenType>
+std::map<TokenType, uint32_t> UbpeBase<DocType, TokenType>::getAlphabet()
     const {
     return this->alphabet;
 }
 
-template <DocumentT T>
-std::map<uint32_t, typename UbpeBase<T>::TokenType>
-UbpeBase<T>::getInverseAlphabet() const {
+template <DocumentT DocType, typename TokenType>
+std::map<uint32_t, TokenType> UbpeBase<DocType, TokenType>::getInverseAlphabet()
+    const {
     return this->inverse_alphabet;
 }
 }  // namespace ubpe

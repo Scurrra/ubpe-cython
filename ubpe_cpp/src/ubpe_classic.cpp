@@ -16,24 +16,24 @@
 
 namespace ubpe {
 
-template <DocumentT T>
-UbpeClassic<T>::UbpeClassic(uint32_t n_tokens, uint32_t alphabet_size)
-    : UbpeBase<T>(n_tokens, alphabet_size) {}
+template <DocumentT DocType, typename TokenType>
+UbpeClassic<DocType, TokenType>::UbpeClassic(uint32_t n_tokens, uint32_t alphabet_size)
+    : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size) {}
 
-template <DocumentT T>
-UbpeClassic<T>::UbpeClassic(uint32_t n_tokens, uint32_t alphabet_size,
+template <DocumentT DocType, typename TokenType>
+UbpeClassic<DocType, TokenType>::UbpeClassic(uint32_t n_tokens, uint32_t alphabet_size,
                             std::map<TokenType, uint32_t> alphabet)
-    : UbpeBase<T>(n_tokens, alphabet_size, alphabet) {}
+    : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet) {}
 
-template <DocumentT T>
-UbpeClassic<T>::UbpeClassic(
+template <DocumentT DocType, typename TokenType>
+UbpeClassic<DocType, TokenType>::UbpeClassic(
     uint32_t n_tokens, uint32_t alphabet_size,
     std::map<TokenType, uint32_t> alphabet,
     std::map<uint32_t, TokenType> inverse_alphabet,
     std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
     std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
     std::map<uint32_t, float> tokens_weights)
-    : UbpeBase<T>(n_tokens, alphabet_size, alphabet, inverse_alphabet,
+    : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet, inverse_alphabet,
                   tokens_forward_mapper, tokens_backward_mapper,
                   tokens_weights) {
     std::transform(tokens_forward_mapper.cbegin(), tokens_forward_mapper.cend(),
@@ -41,8 +41,8 @@ UbpeClassic<T>::UbpeClassic(
                    [](const auto& element) { return element.first; });
 }
 
-template <DocumentT T>
-void UbpeClassic<T>::fit(const std::vector<DocType>& corpus,
+template <DocumentT DocType, typename TokenType>
+void UbpeClassic<DocType, TokenType>::fit(const std::vector<DocType>& corpus,
                          uint32_t n_candidates, bool rearrange_tokens) {
     assert((n_candidates > 0) || "`n_candidates` should not be 0");
     auto max_token = this->alphabet_size - 1;
@@ -118,8 +118,8 @@ void UbpeClassic<T>::fit(const std::vector<DocType>& corpus,
                    [](const auto& element) { return element.first; });
 }
 
-template <DocumentT T>
-std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic<T>::encode(
+template <DocumentT DocType, typename TokenType>
+std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic<DocType, TokenType>::encode(
     const DocType& doc, uint8_t) const {
     assert((this->pairs.size() == 0) && "Tokenizer was not fitted");
     assert((this->tokens_forward_mapper.size() == 0 ||
@@ -197,8 +197,8 @@ std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic<T>::encode(
     return {{_doc, weight}};
 }
 
-template <DocumentT T>
-UbpeClassic<T>::DocType UbpeClassic<T>::decode(
+template <DocumentT DocType, typename TokenType>
+DocType UbpeClassic<DocType, TokenType>::decode(
     const std::vector<uint32_t>& tokens) const {
     assert((this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0 ||

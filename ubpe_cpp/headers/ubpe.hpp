@@ -11,15 +11,12 @@ namespace ubpe {
 
 /// Universal Byte-Pair Encoding, that provides many options of encodings for
 /// the document.
-template <DocumentT T>
-class Ubpe : protected UbpeBase<T> {
+template <DocumentT DocType, typename TokenType = DocType::value_type>
+class Ubpe : protected UbpeBase<DocType> {
    private:
     SSSTree<std::vector<uint32_t>, uint32_t> lookup;
 
    public:
-    using TokenType = typename Ubpe<T>::TokenType;
-    using DocType = typename Ubpe<T>::DocType;
-
     Ubpe(uint32_t, uint32_t);
     Ubpe(uint32_t, uint32_t, std::map<TokenType, uint32_t>);
     Ubpe(uint32_t, uint32_t, std::map<TokenType, uint32_t>,
