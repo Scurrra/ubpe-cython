@@ -1,6 +1,7 @@
 #ifndef UBPE_UTILS_HPP
 #define UBPE_UTILS_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -12,8 +13,8 @@ namespace ubpe {
 /// @brief Concept of type that can be a document or a key in a `ubpe::SSSTree`.
 template <typename T>
 concept DocumentT = std::ranges::range<T> ||
-                   std::is_same_v<std::remove_cvref_t<T>,
-                                  std::basic_string<typename T::value_type>>;
+                    std::is_same_v<std::remove_cvref_t<T>,
+                                   std::basic_string<typename T::value_type>>;
 
 /// @brief Function for replacing pair of adjacent tokens in a list with a new
 /// one.
@@ -24,7 +25,7 @@ void _replace_token_pairs(
     std::vector<uint32_t>& vec,
     const std::map<uint32_t, std::pair<uint32_t, uint32_t>>& sub) {
     // two pointers starting with `-1` for a hack
-    auto left = -1, right = -1;
+    size_t left = -1, right = -1;
     // while we can access element with index `right+1`
     while (right < vec.size() - 2) {
         // here is the hack: assigning anyways

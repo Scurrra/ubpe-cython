@@ -12,7 +12,7 @@ namespace ubpe {
 /// Universal Byte-Pair Encoding, that provides many options of encodings for
 /// the document.
 template <DocumentT DocType, typename TokenType = DocType::value_type>
-class Ubpe : protected UbpeBase<DocType> {
+class Ubpe : protected UbpeBase<DocType, TokenType> {
    private:
     SSSTree<std::vector<uint32_t>, uint32_t> lookup;
 
@@ -35,6 +35,10 @@ class Ubpe : protected UbpeBase<DocType> {
         const DocType&, uint8_t = 1) const override;
 
     DocType decode(const std::vector<uint32_t>&) const override;
+
+    std::map<uint32_t, std::vector<uint32_t>> getBackwardMapper() const;
+    std::map<uint32_t, float> getTokensWeights() const;
+    std::map<TokenType, uint32_t> getAlphabet() const;
 };
 
 }  // namespace ubpe

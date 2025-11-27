@@ -17,12 +17,14 @@
 namespace ubpe {
 
 template <DocumentT DocType, typename TokenType>
-UbpeClassic<DocType, TokenType>::UbpeClassic(uint32_t n_tokens, uint32_t alphabet_size)
+UbpeClassic<DocType, TokenType>::UbpeClassic(uint32_t n_tokens,
+                                             uint32_t alphabet_size)
     : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size) {}
 
 template <DocumentT DocType, typename TokenType>
-UbpeClassic<DocType, TokenType>::UbpeClassic(uint32_t n_tokens, uint32_t alphabet_size,
-                            std::map<TokenType, uint32_t> alphabet)
+UbpeClassic<DocType, TokenType>::UbpeClassic(
+    uint32_t n_tokens, uint32_t alphabet_size,
+    std::map<TokenType, uint32_t> alphabet)
     : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet) {}
 
 template <DocumentT DocType, typename TokenType>
@@ -33,9 +35,9 @@ UbpeClassic<DocType, TokenType>::UbpeClassic(
     std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
     std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
     std::map<uint32_t, float> tokens_weights)
-    : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet, inverse_alphabet,
-                  tokens_forward_mapper, tokens_backward_mapper,
-                  tokens_weights) {
+    : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
+                                   inverse_alphabet, tokens_forward_mapper,
+                                   tokens_backward_mapper, tokens_weights) {
     std::transform(tokens_forward_mapper.cbegin(), tokens_forward_mapper.cend(),
                    std::back_inserter(this->pairs),
                    [](const auto& element) { return element.first; });
@@ -43,7 +45,8 @@ UbpeClassic<DocType, TokenType>::UbpeClassic(
 
 template <DocumentT DocType, typename TokenType>
 void UbpeClassic<DocType, TokenType>::fit(const std::vector<DocType>& corpus,
-                         uint32_t n_candidates, bool rearrange_tokens) {
+                                          uint32_t n_candidates,
+                                          bool rearrange_tokens) {
     assert((n_candidates > 0) || "`n_candidates` should not be 0");
     auto max_token = this->alphabet_size - 1;
 
@@ -119,8 +122,8 @@ void UbpeClassic<DocType, TokenType>::fit(const std::vector<DocType>& corpus,
 }
 
 template <DocumentT DocType, typename TokenType>
-std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic<DocType, TokenType>::encode(
-    const DocType& doc, uint8_t) const {
+std::vector<std::pair<std::vector<uint32_t>, float>>
+UbpeClassic<DocType, TokenType>::encode(const DocType& doc, uint8_t) const {
     assert((this->pairs.size() == 0) && "Tokenizer was not fitted");
     assert((this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0 ||
@@ -144,7 +147,7 @@ std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic<DocType, TokenT
             });
 
         // find the first most valueable pair of tokens in the `doc`
-        auto i = 0;
+        size_t i = 0;
         while (i < this->pairs.size() && !pairs.contains(this->pairs[i])) i++;
 
         // if `i` is out of bounds, encoding is completed
@@ -158,7 +161,7 @@ std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic<DocType, TokenT
                                        this->pairs[i].cend());
 
         // find pairs for replacement
-        for (int j = i + 1; j < this->pairs.size(); j++) {
+        for (size_t j = i + 1; j < this->pairs.size(); j++) {
             // subsequence of most valueable pairs
             if (current_set.contains(this->pairs[j][0]) ||
                 current_set.contains(this->pairs[j][1])) {
@@ -184,7 +187,7 @@ std::vector<std::pair<std::vector<uint32_t>, float>> UbpeClassic<DocType, TokenT
     }
 
     // compute weight of encoded `doc`
-    auto counter = Counter<uint32_t>(doc);
+    auto counter = Counter<uint32_t>(_doc);
     auto weight = std::accumulate(
         counter.cbegin(), counter.cend(), 0.0,
         [this](auto total, auto& element) {
@@ -240,6 +243,24 @@ DocType UbpeClassic<DocType, TokenType>::decode(
     }
 
     return this->_vec_to_doc(document);
+}
+
+template <DocumentT DocType, typename TokenType>
+std::map<uint32_t, std::vector<uint32_t>>
+UbpeClassic<DocType, TokenType>::getBackwardMapper() const {
+    return this->tokens_backward_mapper;
+}
+
+template <DocumentT DocType, typename TokenType>
+std::map<uint32_t, float> UbpeClassic<DocType, TokenType>::getTokensWeights()
+    const {
+    return this->tokens_weights;
+}
+
+template <DocumentT DocType, typename TokenType>
+std::map<TokenType, uint32_t> UbpeClassic<DocType, TokenType>::getAlphabet()
+    const {
+    return this->alphabet;
 }
 
 }  // namespace ubpe

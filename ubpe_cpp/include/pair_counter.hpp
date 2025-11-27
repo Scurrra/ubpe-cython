@@ -36,7 +36,7 @@ class PairCounter {
     /// @param doc Flat vector.
     void update(const std::vector<T>& doc) {
         // update with adjacent pairs
-        for (auto i = 0; i < doc.size() - 1; i++) {
+        for (size_t i = 0; i < doc.size() - 1; i++) {
             this->pairs_counter[{doc[i], doc[i + 1]}]++;
         }
 

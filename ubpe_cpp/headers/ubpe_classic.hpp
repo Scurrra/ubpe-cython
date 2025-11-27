@@ -7,7 +7,7 @@ namespace ubpe {
 
 /// Classic implementation of Byte-Pair Encoding, but for general sequences.
 template <DocumentT DocType, typename TokenType = DocType::value_type>
-class UbpeClassic : protected UbpeBase<DocType> {
+class UbpeClassic : protected UbpeBase<DocType, TokenType> {
    private:
     std::vector<std::vector<uint32_t>> pairs;
 
@@ -25,13 +25,16 @@ class UbpeClassic : protected UbpeBase<DocType> {
     UbpeClassic& operator=(UbpeClassic&&) = default;
     ~UbpeClassic() = default;
 
-    void fit(const std::vector<DocType>&, uint32_t = 50,
-             bool = true) override;
+    void fit(const std::vector<DocType>&, uint32_t = 50, bool = true) override;
 
     std::vector<std::pair<std::vector<uint32_t>, float>> encode(
         const DocType&, uint8_t = 1) const override;
 
     DocType decode(const std::vector<uint32_t>&) const override;
+
+    std::map<uint32_t, std::vector<uint32_t>> getBackwardMapper() const;
+    std::map<uint32_t, float> getTokensWeights() const;
+    std::map<TokenType, uint32_t> getAlphabet() const;
 };
 
 }  // namespace ubpe

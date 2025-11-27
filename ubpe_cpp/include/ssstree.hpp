@@ -45,7 +45,7 @@ class SSSTreeNode {
         auto [key, value] = element;
 
         // find common prefix for the node's key and `key`
-        auto i = 0;
+        size_t i = 0;
         auto max_len = std::min(this->key.size(), key.size());
         while (i < max_len && this->key[i] == key[i]) i++;
 
@@ -179,7 +179,7 @@ class SSSTree {
     /// @returns The new tree node.
     SSSTreeNode<K, V> operator+(std::pair<K, V> element) {
         // search which child is able to contain `key`
-        auto i = 0;
+        size_t i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == element.first[0]) {
@@ -200,7 +200,7 @@ class SSSTree {
     /// @returns A value in the tree for `key`.
     std::optional<V> operator[](K& key) const {
         // search which child may contain `key`
-        auto i = 0;
+        size_t i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == key[0]) {
@@ -223,7 +223,7 @@ class SSSTree {
                                             size_t start = 0) const {
         assert((start < key.size()) || "`start` is out of range");
         // search which child may contain `key`
-        auto i = 0;
+        size_t i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == key[start]) {
