@@ -1,0 +1,29 @@
+[project]
+name = "ubpe-cython"
+version = "0.0.1"
+description = "Cython implementation of UBPE tokenization algorithm (C++ backend)."
+authors = [{ name = "Scurrra (Ilja Baroŭski)", email = "iscurrra@gmail.com" }]
+license = { text = "MIT" }
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/Scurrra/ubpe-cython.git"
+Issues = "https://github.com/Scurrra/ubpe-cython/issues"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0", "cython>=3"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+build = "build.py"
+exclude = ["ubpe_cython/ubpe"]
+include = [
+    { path = "ubpe_cython/libubpe.so", format = "wheel" },
+    { path = "ubpe_cython/__init__.py" },
+]
