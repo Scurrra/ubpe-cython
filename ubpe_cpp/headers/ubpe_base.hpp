@@ -1,13 +1,22 @@
 #ifndef UBPE_BASE_CPP
 #define UBPE_BASE_CPP
 
+#include <algorithm>
+#include <cassert>
 #include <cstdint>
+#include <iterator>
 #include <map>
+#include <set>
+#include <utility>
 #include <vector>
 
-#include "../include/utils.hpp"
-
 namespace ubpe {
+
+/// @brief Concept of type that can be a document or a key in a `ubpe::SSSTree`.
+template <typename T>
+concept DocumentT = std::ranges::range<T> ||
+                    std::is_same_v<std::remove_cvref_t<T>,
+                                   std::basic_string<typename T::value_type>>;
 
 template <DocumentT DocType, typename TokenType = DocType::value_type>
 class UbpeBase {
@@ -26,30 +35,227 @@ class UbpeBase {
     /// @brief Function that rearranges found tokens according to their weights
     /// and trims dictionary of the tokenizer to be not greater than
     /// `this.n_tokens`.
-    void _rearrange_tokens_by_weight();
+    void _rearrange_tokens_by_weight() {
+        assert((this->tokens_forward_mapper.size() == 0 ||
+                this->tokens_backward_mapper.size() == 0 ||
+                this->tokens_weights.size() == 0) &&
+               "Can not rearrange non-fitted tokenizer");
 
-    /// @brief Convert document of `Ubpe<DocType, TokenType>::DocType` to vector
-    /// of base tokens.
+        // buffer to sort by weight and eliminate some of them
+        std::vector<std::pair<uint32_t, std::vector<uint32_t>>> buf(
+            this->tokens_backward_mapper.cbegin(),
+            this->tokens_backward_mapper.cend());
+
+        // sort buffer
+        std::sort(buf.begin(), buf.end(), [this](const auto& a, const auto& b) {
+            return this->tokens_weights[a.first] <
+                   this->tokens_weights[b.first];
+        });
+
+        // min number of tokens to delete
+        auto to_delete_quantity =
+            this->tokens_weights.size() - this->n_tokens + this->alphabet_size;
+        // find tokens to delete
+        std::set<uint32_t> to_delete;
+        // check tokens with smalest weights first
+        for (uint32_t i = 0; i < buf.size(); i++) {
+            // skip if `i` is already pended for deletion
+            if (to_delete.contains(i)) continue;
+            // if all values for deletion are already found
+            if (to_delete.size() >= to_delete_quantity) break;
+            // add token for deletion to the set
+            to_delete.insert(i);
+
+            // check some rare condition when found token is present in more
+            // valueable subsequence of tokens for substitution
+            for (uint32_t j = i + 1; j < buf.size(); j++) {
+                if (auto it = std::find(buf[j].second.cbegin(),
+                                        buf[j].second.cend(), buf[i].first);
+                    it != buf[j].second.end()) {
+                    to_delete.insert(j);
+                }
+            }
+        }
+
+        // make `to_delete` contain actual tokens
+        std::set<uint32_t> to_delete_buf;
+        std::transform(
+            to_delete.cbegin(), to_delete.cend(),
+            std::inserter(to_delete_buf, to_delete_buf.end()),
+            [&buf](const auto& element) { return buf[element].first; });
+        to_delete = std::move(to_delete_buf);
+
+        // reverse `buf`
+        std::reverse(buf.begin(), buf.end());
+
+        // create mapping between old tokens and new tokens
+        std::map<uint32_t, uint32_t> transformer;
+        // for (uint32_t i = 0; i < this->alphabet_size; i++) {
+        //     transformer[i] = i;
+        // }
+        std::generate_n(std::inserter(transformer, transformer.end()),
+                        this->alphabet_size,
+                        [i = -1]() mutable -> std::pair<uint32_t, uint32_t> {
+                            i++;
+                            return {i, i};
+                        });
+        // for (uint32_t i = 0; i < buf.size(); i++) {
+        //     transformer[buf[i].first] = this->alphabet_size + i;
+        // }
+        std::generate_n(
+            std::inserter(transformer, transformer.end()), buf.size(),
+            [&buf, this, i = -1]() mutable -> std::pair<uint32_t, uint32_t> {
+                i++;
+                return {buf[i].first, alphabet_size + i};
+            });
+
+        // drop weights for deleted tokens
+        std::erase_if(this->tokens_weights, [&to_delete](const auto& element) {
+            return to_delete.contains(element.first);
+        });
+
+        // update backward mapper
+        std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper;
+        std::transform(
+            this->tokens_backward_mapper.cbegin(),
+            this->tokens_backward_mapper.cend(),
+            std::inserter(tokens_backward_mapper, tokens_backward_mapper.end()),
+            [&](const auto& element)
+                -> std::pair<uint32_t, std::vector<uint32_t>> {
+                std::vector<uint32_t> new_sequence;
+                new_sequence.reserve(element.second.size());
+                std::transform(
+                    element.second.cbegin(), element.second.cend(),
+                    std::back_inserter(new_sequence),
+                    [&](const auto& el) { return transformer.at(el); });
+                return {transformer.at(element.first), new_sequence};
+            });
+        this->tokens_backward_mapper = std::move(tokens_backward_mapper);
+
+        // update forward mapper
+        std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper;
+        std::transform(
+            this->tokens_backward_mapper.cbegin(),
+            this->tokens_backward_mapper.cend(),
+            std::inserter(tokens_forward_mapper, tokens_forward_mapper.end()),
+            [](const auto& element)
+                -> std::pair<std::vector<uint32_t>, uint32_t> {
+                return {element.second, element.first};
+            });
+        this->tokens_forward_mapper = std::move(tokens_forward_mapper);
+    }
+
+    /// @brief Function for replacing pair of adjacent tokens in a list with a
+    /// new one.
+    /// @param vec Vector in which adjacent pairs will be replaced.
+    /// @param sub A substitution map, where keys are first tokens in the pairs,
+    /// and the values are pair of the second token and the new one wrapped in a
+    /// list.
+    static void _replace_token_pairs(
+        std::vector<uint32_t>& vec,
+        const std::map<uint32_t, std::pair<uint32_t, uint32_t>>& sub) {
+        // two pointers starting with `-1` for a hack
+        size_t left = -1, right = -1;
+        // while we can access element with index `right+1`
+        while (right < vec.size() - 2) {
+            // here is the hack: assigning anyways
+            vec[++left] = vec[++right];
+            // here `vec[left] == vec[right]`
+            // so if `vec[right]` is not a potential start of a pair to be
+            // replaced we are done for this index
+            if (!sub.contains(vec[right])) continue;
+
+            // else check `vec[right+1]`
+            if (vec[right + 1] == sub.at(vec[right]).first) {
+                // replace `vec[left]` with the new value
+                // and move `right` forward
+                vec[left] = sub.at(vec[right++]).second;
+            }
+        }
+        // `left` is the length of a new sequence, so we just resize the old one
+        vec.resize(left);
+    }
+
+    /// @brief Convert document of `Ubpe<DocType, TokenType>::DocType` to
+    /// vector of base tokens.
     /// @param doc Document, i.e. data of type `Ubpe<DocType,
     /// TokenType>::DocType`.
     /// @return Vector of base tokens.
-    std::vector<uint32_t> _doc_to_vec(const DocType& doc) const;
+    std::vector<uint32_t> _doc_to_vec(const DocType& doc) const {
+        std::vector<uint32_t> tokens;
+        tokens.reserve(doc.size());
+        std::transform(
+            doc.cbegin(), doc.cend(), std::back_inserter(tokens),
+            [this](const auto& element) { return this->alphabet.at(element); });
+        return tokens;
+    }
 
     /// @brief Convert vector of base tokens to document of `Ubpe<DocType,
     /// TokenType>::DocType`.
     /// @param tokens Vector of base tokens.
     /// @return Document, i.e. data of type `Ubpe<DocType, TokenType>::DocType`.
-    DocType _vec_to_doc(const std::vector<uint32_t>& tokens) const;
+    DocType _vec_to_doc(const std::vector<uint32_t>& tokens) const {
+        DocType doc;
+        doc.reserve(tokens.size());
+        std::transform(tokens.cbegin(), tokens.cend(), std::back_inserter(doc),
+                       [this](const auto& token) {
+                           return this->inverse_alphabet.at(token);
+                       });
+        return doc;
+    }
 
    public:
-    UbpeBase(uint32_t, uint32_t)
-        requires std::convertible_to<uint32_t, TokenType>;
-    UbpeBase(uint32_t, uint32_t, std::map<TokenType, uint32_t>);
-    UbpeBase(uint32_t, uint32_t, std::map<TokenType, uint32_t>,
-             std::map<uint32_t, TokenType>,
-             std::map<std::vector<uint32_t>, uint32_t>,
-             std::map<uint32_t, std::vector<uint32_t>>,
-             std::map<uint32_t, float>);
+    UbpeBase(uint32_t n_tokens, uint32_t alphabet_size)
+        requires std::convertible_to<uint32_t, TokenType>
+        : n_tokens(n_tokens), alphabet_size(alphabet_size) {
+        std::generate_n(std::inserter(this->alphabet, this->alphabet.end()),
+                        alphabet_size,
+                        [i = -1]() mutable -> std::pair<TokenType, uint32_t> {
+                            i++;
+                            return {i, i};
+                        });
+        std::generate_n(
+            std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
+            alphabet_size,
+            [i = -1]() mutable -> std::pair<uint32_t, TokenType> {
+                i++;
+                return {i, i};
+            });
+    }
+
+    UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
+             std::map<TokenType, uint32_t> alphabet)
+        : n_tokens(n_tokens), alphabet_size(alphabet_size) {
+        assert((alphabet_size == alphabet.size()) &&
+               "Provided `alphabet` should be of size `alphabet_size`.");
+        this->alphabet = alphabet;
+        std::transform(
+            alphabet.cbegin(), alphabet.cend(),
+            std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
+            [](const auto& element) -> std::pair<uint32_t, uint32_t> {
+                return {element.second, element.first};
+            });
+    }
+
+    UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
+             std::map<TokenType, uint32_t> alphabet,
+             std::map<uint32_t, TokenType> inverse_alphabet,
+             std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
+             std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
+             std::map<uint32_t, float> tokens_weights)
+        : n_tokens(n_tokens),
+          alphabet_size(alphabet_size),
+          alphabet(alphabet),
+          inverse_alphabet(inverse_alphabet),
+          tokens_forward_mapper(tokens_forward_mapper),
+          tokens_backward_mapper(tokens_backward_mapper),
+          tokens_weights(tokens_weights) {
+        assert((alphabet_size == alphabet.size()) &&
+               "Provided `alphabet` should be of size `alphabet_size`.");
+        assert((alphabet.size() == inverse_alphabet.size()) &&
+               "`alphabet` and `inverse_alphabet` should be of the same size.");
+    }
+
     UbpeBase(const UbpeBase&) = default;
     UbpeBase(UbpeBase&&) = default;
     UbpeBase& operator=(const UbpeBase&) = default;
@@ -58,23 +264,31 @@ class UbpeBase {
 
     /// @brief Get forward mapper for dumping.
     /// @return `this.tokens_forward_mapper`
-    std::map<std::vector<uint32_t>, uint32_t> getForwardMapper() const;
+    std::map<std::vector<uint32_t>, uint32_t> getForwardMapper() const {
+        return this->tokens_forward_mapper;
+    }
 
     /// @brief Get backward mapper for dumping.
     /// @return `this.tokens_backward_mapper`
-    std::map<uint32_t, std::vector<uint32_t>> getBackwardMapper() const;
+    std::map<uint32_t, std::vector<uint32_t>> getBackwardMapper() const {
+        return this->tokens_backward_mapper;
+    }
 
     /// @brief Get token weighs.
     /// @return `this.tokens_weights`
-    std::map<uint32_t, float> getTokensWeights() const;
+    std::map<uint32_t, float> getTokensWeights() const {
+        return this->tokens_weights;
+    }
 
     /// @brief Get alphabet mapping.
     /// @return Base alphabet mapping.
-    std::map<TokenType, uint32_t> getAlphabet() const;
+    std::map<TokenType, uint32_t> getAlphabet() const { return this->alphabet; }
 
     /// @brief Get inverse alphabet mapping.
     /// @return Inverse abse alphabet mapping.
-    std::map<uint32_t, TokenType> getInverseAlphabet() const;
+    std::map<uint32_t, TokenType> getInverseAlphabet() const {
+        return this->inverse_alphabet;
+    }
 
     /// @brief Fit tokenizer with `corpus`.
     /// @param docs Data to fit tokenizer with.

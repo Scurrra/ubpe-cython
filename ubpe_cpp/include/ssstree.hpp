@@ -5,22 +5,27 @@
 #include <cassert>
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
-#include "utils.hpp"
 namespace ubpe {
+
+template <typename T>
+concept TreeKeyT = std::ranges::range<T> ||
+                   std::is_same_v<std::remove_cvref_t<T>,
+                                  std::basic_string<typename T::value_type>>;
 
 /// @brief SubSequence Search Tree.
 ///
 /// Well, it's a version of an optimized trie but with an efficient search
 /// operator `()` which return not the full match for the `key`, but all
 /// non-null entries which keys are prefixes in the `key`.
-template <DocumentT K, typename V>
+template <TreeKeyT K, typename V>
 class SSSTree;
 
 /// @brief SubSequence Search Tree node.
-template <DocumentT K, typename V>
+template <TreeKeyT K, typename V>
 class SSSTreeNode {
     friend class SSSTree<K, V>;
 
@@ -158,7 +163,7 @@ class SSSTreeNode {
     }
 };
 
-template <DocumentT K, typename V>
+template <TreeKeyT K, typename V>
 class SSSTree {
    private:
     std::vector<SSSTreeNode<K, V>> children;
