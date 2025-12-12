@@ -3,6 +3,7 @@ import json
 
 from cython.operator cimport dereference as deref
 from libc.stdint cimport uint32_t, uint8_t
+from libcpp cimport bool
 from libcpp.map cimport map
 from libcpp.memory cimport unique_ptr, make_unique
 from libcpp.string cimport string
@@ -10,14 +11,11 @@ from libcpp.vector cimport vector
 from libcpp cimport nullptr
 
 
-from ubpe_cython.interface.ubpe_classic cimport UbpeClassic
+from interface cimport Ubpe
 
 
-cdef class UbpeClassicInt:
-    cdef unique_ptr[UbpeClassic[vector[int], int]] inner
-
-    # def __cinit__(self):
-    #     self.inner = nullptr
+cdef class UbpeInt:
+    cdef unique_ptr[Ubpe[vector[int], int]] inner
 
     def __init__(
         self,
@@ -29,13 +27,13 @@ cdef class UbpeClassicInt:
         cdef map[int, uint32_t] _alphabet
         cdef uint32_t _n_tokens
 
-        assert alphabet is not None and alphabet_size is not None, "Either `alphabet_size` or `alphabet` must be specified, or model should be load from json string"
+        assert not (alphabet is None and alphabet_size is None), "Either `alphabet_size` or `alphabet` must be specified, or model should be load from json string"
 
         # constructor without an alphabet
         if alphabet is None and alphabet_size is not None:
             _n_tokens = n_tokens
             _alphabet_size = alphabet_size
-            self.inner = make_unique[UbpeClassic[vector[int], int]](_n_tokens, _alphabet_size)
+            self.inner = make_unique[Ubpe[vector[int], int]](_n_tokens, _alphabet_size)
             return
 
         # ensure that `alphabet` is a dict
@@ -50,7 +48,7 @@ cdef class UbpeClassicInt:
         _alphabet_size = alphabet_size
         for key, value in alphabet.items():
             _alphabet.insert((key, value))    
-        self.inner = make_unique[UbpeClassic[vector[int], int]](_n_tokens, _alphabet_size, _alphabet)
+        self.inner = make_unique[Ubpe[vector[int], int]](_n_tokens, _alphabet_size, _alphabet)
 
     def dumps(self) -> str:
         """
@@ -94,16 +92,15 @@ cdef class UbpeClassicInt:
         for token, weight in model["weights"].items():
             tokens_weights.insert((token, weight))
         
-        self.inner = make_unique[UbpeClassic[vector[int], int]](
+        self.inner = make_unique[Ubpe[vector[int], int]](
             n_tokens, alphabet_size,
             alphabet, inverse_alphabet, 
             tokens_forward_mapping, tokens_backward_mapping,
             tokens_weights
         )
-
         return self
 
-    def fit(self, vector[vector[int]] corpus, uint32_t n_candidates, bint rearrange_tokens):
+    def fit(self, vector[vector[int]] corpus, uint32_t n_candidates, bool rearrange_tokens):
         deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
 
     def encode(self, vector[int] doc, uint8_t top_n = 1):
@@ -112,29 +109,27 @@ cdef class UbpeClassicInt:
     def decode(self, vector[uint32_t] tokens):
         return deref(self.inner).decode(tokens)
 
-cdef class UbpeClassicChar:
-    cdef unique_ptr[UbpeClassic[string, char]] inner
 
-    # def __cinit__(self):
-    #     self.inner = nullptr
+cdef class UbpeChar:
+    cdef unique_ptr[Ubpe[string, char]] inner
 
     def __init__(
         self,
         alphabet_size: int | None = None,
-        alphabet: dict[int, int] | None = None,
+        alphabet: dict[str, int] | None = None,
         n_tokens: int = 2**10,
     ):
         cdef uint32_t _alphabet_size
         cdef map[char, uint32_t] _alphabet
         cdef uint32_t _n_tokens
 
-        assert alphabet is not None and alphabet_size is not None, "Either `alphabet_size` or `alphabet` must be specified, or model should be load from json string"
+        assert not (alphabet is None and alphabet_size is None), "Either `alphabet_size` or `alphabet` must be specified, or model should be load from json string"
 
         # constructor without an alphabet
         if alphabet is None and alphabet_size is not None:
             _n_tokens = n_tokens
             _alphabet_size = alphabet_size
-            self.inner = make_unique[UbpeClassic[string, char]](_n_tokens, _alphabet_size)
+            self.inner = make_unique[Ubpe[string, char]](_n_tokens, _alphabet_size)
             return
 
         # ensure that `alphabet` is a dict
@@ -149,7 +144,7 @@ cdef class UbpeClassicChar:
         _alphabet_size = alphabet_size
         for key, value in alphabet.items():
             _alphabet.insert((key, value))    
-        self.inner = make_unique[UbpeClassic[string, char]](_n_tokens, _alphabet_size, _alphabet)
+        self.inner = make_unique[Ubpe[string, char]](_n_tokens, _alphabet_size, _alphabet)
 
     def dumps(self) -> str:
         """
@@ -193,16 +188,15 @@ cdef class UbpeClassicChar:
         for token, weight in model["weights"].items():
             tokens_weights.insert((token, weight))
         
-        self.inner = make_unique[UbpeClassic[string, char]](
+        self.inner = make_unique[Ubpe[string, char]](
             n_tokens, alphabet_size,
             alphabet, inverse_alphabet, 
             tokens_forward_mapping, tokens_backward_mapping,
             tokens_weights
         )
-
         return self
 
-    def fit(self, vector[string] corpus, uint32_t n_candidates, bint rearrange_tokens):
+    def fit(self, vector[string] corpus, uint32_t n_candidates, bool rearrange_tokens):
         deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
 
     def encode(self, string doc, top_n=1):
