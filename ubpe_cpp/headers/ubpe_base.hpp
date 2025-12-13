@@ -154,16 +154,20 @@ class UbpeBase {
     static void _replace_token_pairs(
         std::vector<uint32_t>& vec,
         const std::map<uint32_t, std::pair<uint32_t, uint32_t>>& sub) {
-        // two pointers starting with `-1` for a hack
-        size_t left = -1, right = -1;
+        // two pointers
+        size_t left = 0, right = 0;
         // while we can access element with index `right+1`
         while (right < vec.size() - 2) {
             // here is the hack: assigning anyways
-            vec[++left] = vec[++right];
+            vec[left] = vec[right];
             // here `vec[left] == vec[right]`
             // so if `vec[right]` is not a potential start of a pair to be
             // replaced we are done for this index
-            if (!sub.contains(vec[right])) continue;
+            if (!sub.contains(vec[right])) {
+                left++;
+                right++;
+                continue;
+            }
 
             // else check `vec[right+1]`
             if (vec[right + 1] == sub.at(vec[right]).first) {
@@ -171,6 +175,9 @@ class UbpeBase {
                 // and move `right` forward
                 vec[left] = sub.at(vec[right++]).second;
             }
+
+            left++;
+            right++;
         }
         // `left` is the length of a new sequence, so we just resize the old one
         vec.resize(left);
