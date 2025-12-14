@@ -5,8 +5,10 @@
 #include <cstddef>
 #include <map>
 #include <numeric>
+#include <print>
 #include <stack>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 
 #include "counter.hpp"
@@ -58,7 +60,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
     void fit(const std::vector<DocType>& corpus, uint32_t n_candidates = 50,
              bool rearrange_tokens = true) override {
-        assert((n_candidates > 0) || "`n_candidates` should not be 0");
+        assert((n_candidates > 0) && "`n_candidates` should not be 0");
         auto max_token = this->alphabet_size - 1;
 
         std::vector<std::vector<uint32_t>> _corpus;
@@ -109,11 +111,12 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
             // merge subsequences for each pair of tokens and add it to the
             // mapings
-            std::map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
+            std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
             for (const auto& [pair, _] : token_pairs) {
                 max_token++;
-                this->tokens_weights[max_token] = std::log(
-                    (1 + corpus.size()) / (1 + pairs_counter(pair).first));
+                this->tokens_weights[max_token] =
+                    std::log(static_cast<float>(1 + corpus.size()) /
+                             (1 + pairs_counter(pair).first));
                 // merge subsequences
                 std::vector<uint32_t> tokens_map;
                 if (this->tokens_backward_mapper.contains(pair.first)) {
@@ -162,10 +165,10 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
     std::vector<std::pair<std::vector<uint32_t>, float>> encode(
         const DocType& doc, uint8_t top_n = 1) const override {
-        assert((this->lookup.empty()) && "Tokenizer was not fitted");
-        assert((this->tokens_forward_mapper.size() == 0 ||
-                this->tokens_backward_mapper.size() == 0 ||
-                this->tokens_weights.size() == 0) &&
+        assert((!this->lookup.empty()) && "Tokenizer was not fitted");
+        assert((this->tokens_forward_mapper.size() != 0 &&
+                this->tokens_backward_mapper.size() != 0 &&
+                this->tokens_weights.size() != 0) &&
                "Can not rearrange non-fitted tokenizer");
 
         // handle empty sequence
@@ -191,15 +194,21 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             start += stack.back().first.size();
         }
 
+        std::println("Initial stacks: {} : {}", stacks, stacks.size());
+
         // build nodes
         std::map<size_t,
                  std::map<std::vector<uint32_t>, std::pair<uint32_t, size_t>>>
             nodes;
+        std::println("Nodes: {}", nodes.size());
         // check all stacks form the end of `doc`
-        while (stacks.size() != 0) {
+        while (!stacks.empty()) {
             // extract the top stack
-            const auto& [start, stack] = stacks.top();
+            auto [start, stack] = stacks.top();
             stacks.pop();
+            
+            std::println("Start: {} :: Stack: {}", start, stack);
+
             // map which points keys (sequences of basic tokens) to pairs of
             // values and starts of following tokens
             std::map<std::vector<uint32_t>, std::pair<uint32_t, size_t>> next;
@@ -209,6 +218,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                 auto next_key_start = start + key.size();
                 // add candidate to the map
                 next[key] = std::make_pair(value, next_key_start);
+                std::println("Key: {} => {} : {}", key, value, next_key_start);
                 // check if the following token was already added
                 if (next_key_start != _doc.size() &&
                     !nodes.contains(next_key_start)) {
@@ -218,8 +228,17 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                 }
             }
             // create new node
-            nodes[start] = std::move(next);
+            nodes[start] = next;
+
+            std::println("Node from {} size = {}", start, next.size());
         }
+
+        std::println("Nodes: {}", nodes.size());
+        if (nodes.contains(_doc.size())) {
+            std::println("`nodes` contains the `doc`'s end");
+        }
+        std::println("Doc size: {}", _doc.size());
+        
 
         // map that points start position to up to `top_n` candidate tails
         std::map<size_t, std::vector<std::tuple<float, std::vector<uint32_t>,
@@ -229,8 +248,9 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         // weight, is an empty sequence, and counts of it's tokens are zeros
         tails[_doc.size()] = {
             std::make_tuple(0.0, std::vector<uint32_t>{}, Counter<uint32_t>())};
+        std::println("Initial tails: {}", tails);
         // form the end of `doc`
-        for (auto start = _doc.size(); start > 0; start--) {
+        for (int start = _doc.size() - 1; start >= 0; start--) {
             // all candidates from `start`
             std::vector<
                 std::tuple<float, std::vector<uint32_t>, Counter<uint32_t>>>
@@ -238,6 +258,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             // for each subsequence from `start`
             for (const auto& [_, node] : nodes[start]) {
                 const auto& [token, next_start] = node;
+                std::println("Token: {}, Next start = {}", token, next_start);
                 // for each tail that starts where the subsequence ends
                 for (const auto& [_, tail, counter] : tails[next_start]) {
                     // new tail
@@ -248,7 +269,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                     auto buf_counter = counter;
                     buf_counter[token]++;
                     // weight of the tail
-                    auto buf_weight = std::accumulate(
+                    float buf_weight = std::accumulate(
                         buf_counter.cbegin(), buf_counter.cend(), 0.0,
                         [this](auto total, const auto& element) {
                             return total +
@@ -261,6 +282,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                     // add a new candidate
                     buf.emplace_back(
                         std::make_tuple(buf_weight, buf_element, buf_counter));
+                    std::println("Last buf: {}", buf.back());
                 }
             }
             // max number of tails to add
@@ -271,7 +293,9 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                 return std::get<0>(a) > std::get<0>(b);
             });
             // add top candidates to `tails`
+
             tails[start] = std::vector(buf.cbegin(), buf.cbegin() + buf_n);
+            std::println("Tails after {}: {}", start, tails);
         }
 
         // prepare result container
@@ -279,7 +303,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         candidates.reserve(tails[0].size());
         // remove counter
         std::transform(
-            tails[0].cbegin(), tails[0].cbegin(),
+            tails[0].cbegin(), tails[0].cend(),
             std::back_inserter(candidates),
             [](const auto& element) -> std::pair<std::vector<uint32_t>, float> {
                 return {std::get<1>(element), std::get<0>(element)};
@@ -288,9 +312,9 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
     }
 
     DocType decode(const std::vector<uint32_t>& tokens) const override {
-        assert((this->tokens_forward_mapper.size() == 0 ||
-                this->tokens_backward_mapper.size() == 0 ||
-                this->tokens_weights.size() == 0) &&
+        assert((this->tokens_forward_mapper.size() != 0 &&
+                this->tokens_backward_mapper.size() != 0 &&
+                this->tokens_weights.size() != 0) &&
                "Can not rearrange non-fitted tokenizer");
 
         // handle empty sequence
