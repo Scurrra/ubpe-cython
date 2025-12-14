@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstddef>
 #include <numeric>
-#include <set>
 
 #include "counter.hpp"
 #include "pair_counter.hpp"
@@ -50,7 +49,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
     void fit(const std::vector<DocType>& corpus, uint32_t n_candidates = 50,
              bool rearrange_tokens = true) override {
-        assert((n_candidates > 0) || "`n_candidates` should not be 0");
+        assert((n_candidates > 0) && "`n_candidates` should not be 0");
         auto max_token = this->alphabet_size - 1;
 
         std::vector<std::vector<uint32_t>> _corpus;
@@ -99,11 +98,12 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             }
 
             // add new pair mapping
-            std::map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
+            std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
             for (const auto& [pair, _] : token_pairs) {
                 max_token++;
-                this->tokens_weights[max_token] = std::log(
-                    (1 + corpus.size()) / (1 + pairs_counter(pair).first));
+                this->tokens_weights[max_token] =
+                    std::log(static_cast<float>(1 + corpus.size()) /
+                             (1 + pairs_counter(pair).first));
                 this->tokens_backward_mapper[max_token] = {pair.first,
                                                            pair.second};
                 this->tokens_forward_mapper[{pair.first, pair.second}] =
@@ -132,10 +132,10 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
     std::vector<std::pair<std::vector<uint32_t>, float>> encode(
         const DocType& doc, uint8_t = 1) const override {
-        assert((this->pairs.size() == 0) && "Tokenizer was not fitted");
-        assert((this->tokens_forward_mapper.size() == 0 ||
-                this->tokens_backward_mapper.size() == 0 ||
-                this->tokens_weights.size() == 0) &&
+        assert((this->pairs.size() != 0) && "Tokenizer was not fitted");
+        assert((this->tokens_forward_mapper.size() != 0 &&
+                this->tokens_backward_mapper.size() != 0 &&
+                this->tokens_weights.size() != 0) &&
                "Can not rearrange non-fitted tokenizer");
 
         // handle empty sequence
@@ -185,7 +185,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                 }
             }
 
-            std::map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
+            std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
             std::transform(
                 tokens.cbegin(), tokens.cend(), std::inserter(sub, sub.end()),
                 [this](const auto& token)
@@ -193,6 +193,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                     return {token[0],
                             {token[1], this->tokens_forward_mapper.at(token)}};
                 });
+
             this->_replace_token_pairs(_doc, sub);
         }
 
@@ -211,9 +212,9 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
     }
 
     DocType decode(const std::vector<uint32_t>& tokens) const override {
-        assert((this->tokens_forward_mapper.size() == 0 ||
-                this->tokens_backward_mapper.size() == 0 ||
-                this->tokens_weights.size() == 0) &&
+        assert((this->tokens_forward_mapper.size() != 0 &&
+                this->tokens_backward_mapper.size() != 0 &&
+                this->tokens_weights.size() != 0) &&
                "Can not rearrange non-fitted tokenizer");
 
         // handle empty sequence

@@ -7,6 +7,7 @@
 #include <iterator>
 #include <map>
 #include <set>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -36,9 +37,9 @@ class UbpeBase {
     /// and trims dictionary of the tokenizer to be not greater than
     /// `this.n_tokens`.
     void _rearrange_tokens_by_weight() {
-        assert((this->tokens_forward_mapper.size() == 0 ||
-                this->tokens_backward_mapper.size() == 0 ||
-                this->tokens_weights.size() == 0) &&
+        assert((this->tokens_forward_mapper.size() != 0 &&
+                this->tokens_backward_mapper.size() != 0 &&
+                this->tokens_weights.size() != 0) &&
                "Can not rearrange non-fitted tokenizer");
 
         // buffer to sort by weight and eliminate some of them
@@ -55,6 +56,7 @@ class UbpeBase {
         // min number of tokens to delete
         auto to_delete_quantity =
             this->tokens_weights.size() - this->n_tokens + this->alphabet_size;
+
         // find tokens to delete
         std::set<uint32_t> to_delete;
         // check tokens with smalest weights first
@@ -103,32 +105,42 @@ class UbpeBase {
         //     transformer[buf[i].first] = this->alphabet_size + i;
         // }
         std::generate_n(
-            std::inserter(transformer, transformer.end()), buf.size(),
-            [&buf, this, i = -1]() mutable -> std::pair<uint32_t, uint32_t> {
+            std::inserter(transformer, transformer.end()),
+            buf.size() - to_delete.size(),
+            [&buf, &to_delete, this, i = -1,
+             offset = 0]() mutable -> std::pair<uint32_t, uint32_t> {
                 i++;
-                return {buf[i].first, alphabet_size + i};
+                while (to_delete.contains(buf[i + offset].first)) offset++;
+                return {buf[i + offset].first, this->alphabet_size + i};
             });
 
         // drop weights for deleted tokens
-        std::erase_if(this->tokens_weights, [&to_delete](const auto& element) {
-            return to_delete.contains(element.first);
-        });
+        std::map<uint32_t, float> tokens_weights;
+        std::transform(
+            std::next(transformer.cbegin(), this->alphabet_size),
+            transformer.cend(),
+            std::inserter(tokens_weights, tokens_weights.end()),
+            [this](const auto& mapper) -> std::pair<uint32_t, float> {
+                return {mapper.second, this->tokens_weights[mapper.first]};
+            });
+        this->tokens_weights = std::move(tokens_weights);
 
         // update backward mapper
         std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper;
         std::transform(
-            this->tokens_backward_mapper.cbegin(),
-            this->tokens_backward_mapper.cend(),
+            std::next(transformer.cbegin(), this->alphabet_size),
+            transformer.cend(),
             std::inserter(tokens_backward_mapper, tokens_backward_mapper.end()),
-            [&](const auto& element)
+            [&, this](const auto& mapper)
                 -> std::pair<uint32_t, std::vector<uint32_t>> {
+                const auto& old_sequence =
+                    this->tokens_backward_mapper[mapper.first];
                 std::vector<uint32_t> new_sequence;
-                new_sequence.reserve(element.second.size());
-                std::transform(
-                    element.second.cbegin(), element.second.cend(),
-                    std::back_inserter(new_sequence),
-                    [&](const auto& el) { return transformer.at(el); });
-                return {transformer.at(element.first), new_sequence};
+                new_sequence.reserve(old_sequence.size());
+                std::transform(old_sequence.cbegin(), old_sequence.cend(),
+                               std::back_inserter(new_sequence),
+                               [&](const auto& el) { return transformer[el]; });
+                return {mapper.second, new_sequence};
             });
         this->tokens_backward_mapper = std::move(tokens_backward_mapper);
 
@@ -153,34 +165,26 @@ class UbpeBase {
     /// list.
     static void _replace_token_pairs(
         std::vector<uint32_t>& vec,
-        const std::map<uint32_t, std::pair<uint32_t, uint32_t>>& sub) {
+        const std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>>&
+            sub) {
         // two pointers
         size_t left = 0, right = 0;
-        // while we can access element with index `right+1`
-        while (right < vec.size() - 2) {
-            // here is the hack: assigning anyways
-            vec[left] = vec[right];
-            // here `vec[left] == vec[right]`
-            // so if `vec[right]` is not a potential start of a pair to be
-            // replaced we are done for this index
-            if (!sub.contains(vec[right])) {
-                left++;
-                right++;
-                continue;
-            }
+        vec[left] = vec[right];
 
-            // else check `vec[right+1]`
-            if (vec[right + 1] == sub.at(vec[right]).first) {
+        // while we can access element with index `right+1`
+        while (right < vec.size() - 1) {
+            // check `vec[right+1]`
+            if (sub.contains(vec[right]) &&
+                vec[right + 1] == sub.at(vec[right]).first) {
                 // replace `vec[left]` with the new value
                 // and move `right` forward
                 vec[left] = sub.at(vec[right++]).second;
             }
 
-            left++;
-            right++;
+            vec[++left] = vec[++right];
         }
         // `left` is the length of a new sequence, so we just resize the old one
-        vec.resize(left);
+        vec.resize(left + 1);
     }
 
     /// @brief Convert document of `Ubpe<DocType, TokenType>::DocType` to
