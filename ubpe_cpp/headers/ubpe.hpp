@@ -355,10 +355,6 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
         return this->_vec_to_doc(document);
     }
-
-    // std::map<uint32_t, std::vector<uint32_t>> getBackwardMapper() const;
-    // std::map<uint32_t, float> getTokensWeights() const;
-    // std::map<TokenType, uint32_t> getAlphabet() const;
 };
 
 }  // namespace ubpe
