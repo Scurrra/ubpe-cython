@@ -25,7 +25,7 @@ else
 endif
 
 CXX := g++
-CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -Os# -DNDEBUG -O2
+CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
 CXX_INCLUDE := -Iubpe_cpp/headers -Iubpe_cpp/include
 CYTHON_SPECIFIC_FLAGS := -I$(PYTHON_INCLUDE)
 
