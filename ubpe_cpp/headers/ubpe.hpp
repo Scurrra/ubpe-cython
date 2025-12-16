@@ -270,8 +270,8 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                     buf_counter[token]++;
                     // weight of the tail
                     float buf_weight = std::accumulate(
-                        buf_counter.cbegin(), buf_counter.cend(), 0.0,
-                        [this](auto total, const auto& element) {
+                        buf_counter.cbegin(), buf_counter.cend(), 0.0f,
+                        [this](float total, const auto& element) {
                             return total +
                                    (this->tokens_weights.contains(element.first)
                                         ? (1 + std::log(element.second)) *
