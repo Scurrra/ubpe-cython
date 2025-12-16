@@ -88,11 +88,9 @@ class PairCounter {
         }
 
         // get values from `pq`
-        std::vector<std::pair<std::pair<T, T>, size_t>> mc;
-        mc.reserve(n);
-        while (!pq.empty()) {
-            mc.emplace_back(pq.top());
-            pq.pop();
+        std::vector<std::pair<std::pair<T, T>, size_t>> mc(n);
+        for (int i = n - 1; i >= 0 && !pq.empty(); i--, pq.pop()) {
+            mc[i] = pq.top();
         }
 
         return mc;

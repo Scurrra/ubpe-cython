@@ -95,7 +95,9 @@ class Counter {
         if (n == 0) return {};
 
         // comparator (like std::less)
-        auto cmp = [](const auto& a, const auto& b) { return a.second > b.second; };
+        auto cmp = [](const auto& a, const auto& b) {
+            return a.second > b.second;
+        };
 
         // if `n` is greater than naumber of pairs itself then just sort
         if (n >= this->counter.size()) {
@@ -120,11 +122,9 @@ class Counter {
         }
 
         // get values from `pq`
-        std::vector<std::pair<T, size_t>> mc;
-        mc.reserve(n);
-        while (!pq.empty()) {
-            mc.emplace_back(pq.top());
-            pq.pop();
+        std::vector<std::pair<T, size_t>> mc(n);
+        for (int i = n - 1; i >= 0 && !pq.empty(); i--, pq.pop()) {
+            mc[i] = pq.top();
         }
 
         return mc;
