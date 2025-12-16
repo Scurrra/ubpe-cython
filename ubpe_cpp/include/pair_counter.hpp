@@ -4,9 +4,10 @@
 #include <algorithm>
 #include <cstddef>
 #include <map>
-#include <queue>
 #include <set>
 #include <vector>
+
+#include "top_elements.hpp"
 
 namespace ubpe {
 
@@ -74,26 +75,11 @@ class PairCounter {
             return mc;
         }
 
-        // create priority queue
-        std::priority_queue<std::pair<std::pair<T, T>, size_t>,
-                            std::vector<std::pair<std::pair<T, T>, size_t>>,
-                            decltype(cmp)>
-            pq(cmp);
-
-        // add values to `pq` keeping it's size (less or) equal to `n`
+        TopElements<std::pair<std::pair<T, T>, size_t>, decltype(cmp)> mc(n);
         for (auto element : this->pairs_counter) {
-            pq.emplace(element);
-            // keep max size
-            if (pq.size() > n) pq.pop();
+            mc.push(element);
         }
-
-        // get values from `pq`
-        std::vector<std::pair<std::pair<T, T>, size_t>> mc(n);
-        for (int i = n - 1; i >= 0 && !pq.empty(); i--, pq.pop()) {
-            mc[i] = pq.top();
-        }
-
-        return mc;
+        return mc.sorted();
     }
 
     /// @brief Get counts for a `pair`.
