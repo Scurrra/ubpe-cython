@@ -94,8 +94,8 @@ class Counter {
     std::vector<std::pair<T, size_t>> most_common(size_t n) const {
         if (n == 0) return {};
 
-        // comparator
-        auto cmp = [](const auto& a, const auto& b) { return a > b; };
+        // comparator (like std::less)
+        auto cmp = [](const auto& a, const auto& b) { return a.second > b.second; };
 
         // if `n` is greater than naumber of pairs itself then just sort
         if (n >= this->counter.size()) {
