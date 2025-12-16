@@ -2,21 +2,70 @@
 #define UBPE_CPP
 
 #include <cmath>
-#include <cstddef>
-#include <map>
 #include <numeric>
-#include <print>
 #include <stack>
-#include <tuple>
-#include <unordered_map>
-#include <utility>
 
 #include "counter.hpp"
 #include "pair_counter.hpp"
 #include "ssstree.hpp"
+#include "top_elements.hpp"
 #include "ubpe_base.hpp"
 
 namespace ubpe {
+
+/// @brief Information about candidate to be used in selection with
+/// `ubpe::TopElements`.
+struct EncodingCandidate {
+    float weight;
+    std::vector<uint32_t> sequence;
+    ubpe::Counter<uint32_t> counter;
+
+    EncodingCandidate() = default;
+    EncodingCandidate(float weight, std::vector<uint32_t> sequence,
+                      ubpe::Counter<uint32_t> counter)
+        : weight(weight), sequence(sequence), counter(counter) {}
+    EncodingCandidate(const EncodingCandidate&) = default;
+    EncodingCandidate(EncodingCandidate&&) = default;
+    EncodingCandidate& operator=(const EncodingCandidate&) = default;
+    EncodingCandidate& operator=(EncodingCandidate&&) = default;
+
+    friend bool operator<(const EncodingCandidate& lhs,
+                          const EncodingCandidate& rhs);
+    bool operator<(const EncodingCandidate& rhs) {
+        if (this->weight == rhs.weight) {
+            return this->sequence.size() > rhs.sequence.size();
+        }
+        return this->weight < rhs.weight;
+    }
+
+    friend bool operator>(const EncodingCandidate& lhs,
+                          const EncodingCandidate& rhs);
+    bool operator>(const EncodingCandidate& rhs) {
+        if (this->weight == rhs.weight) {
+            return this->sequence.size() < rhs.sequence.size();
+        }
+        return this->weight > rhs.weight;
+    }
+
+    /// @brief Construct a sequence-weight pair from the candidate.
+    std::pair<std::vector<uint32_t>, float> operator()() const {
+        return {this->sequence, this->weight};
+    }
+};
+
+bool operator<(const EncodingCandidate& lhs, const EncodingCandidate& rhs) {
+    if (lhs.weight == rhs.weight) {
+        return lhs.sequence.size() > rhs.sequence.size();
+    }
+    return lhs.weight < rhs.weight;
+}
+
+bool operator>(const EncodingCandidate& lhs, const EncodingCandidate& rhs) {
+    if (lhs.weight == rhs.weight) {
+        return lhs.sequence.size() < rhs.sequence.size();
+    }
+    return lhs.weight > rhs.weight;
+}
 
 /// Universal Byte-Pair Encoding, that provides many options of encodings for
 /// the document.
@@ -194,20 +243,15 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             start += stack.back().first.size();
         }
 
-        std::println("Initial stacks: {} : {}", stacks, stacks.size());
-
         // build nodes
         std::map<size_t,
                  std::map<std::vector<uint32_t>, std::pair<uint32_t, size_t>>>
             nodes;
-        std::println("Nodes: {}", nodes.size());
         // check all stacks form the end of `doc`
         while (!stacks.empty()) {
             // extract the top stack
             auto [start, stack] = stacks.top();
             stacks.pop();
-            
-            std::println("Start: {} :: Stack: {}", start, stack);
 
             // map which points keys (sequences of basic tokens) to pairs of
             // values and starts of following tokens
@@ -218,7 +262,6 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                 auto next_key_start = start + key.size();
                 // add candidate to the map
                 next[key] = std::make_pair(value, next_key_start);
-                std::println("Key: {} => {} : {}", key, value, next_key_start);
                 // check if the following token was already added
                 if (next_key_start != _doc.size() &&
                     !nodes.contains(next_key_start)) {
@@ -229,36 +272,21 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             }
             // create new node
             nodes[start] = next;
-
-            std::println("Node from {} size = {}", start, next.size());
         }
-
-        std::println("Nodes: {}", nodes.size());
-        if (nodes.contains(_doc.size())) {
-            std::println("`nodes` contains the `doc`'s end");
-        }
-        std::println("Doc size: {}", _doc.size());
-        
 
         // map that points start position to up to `top_n` candidate tails
-        std::map<size_t, std::vector<std::tuple<float, std::vector<uint32_t>,
-                                                Counter<uint32_t>>>>
-            tails;
+        std::map<size_t, std::vector<EncodingCandidate>> tails;
         // initialize a tail that is after the end of `doc`, that has zero
         // weight, is an empty sequence, and counts of it's tokens are zeros
         tails[_doc.size()] = {
-            std::make_tuple(0.0, std::vector<uint32_t>{}, Counter<uint32_t>())};
-        std::println("Initial tails: {}", tails);
+            {0.0, std::vector<uint32_t>{}, Counter<uint32_t>()}};
         // form the end of `doc`
         for (int start = _doc.size() - 1; start >= 0; start--) {
             // all candidates from `start`
-            std::vector<
-                std::tuple<float, std::vector<uint32_t>, Counter<uint32_t>>>
-                buf;
+            TopElements<EncodingCandidate> buf(top_n);
             // for each subsequence from `start`
             for (const auto& [_, node] : nodes[start]) {
                 const auto& [token, next_start] = node;
-                std::println("Token: {}, Next start = {}", token, next_start);
                 // for each tail that starts where the subsequence ends
                 for (const auto& [_, tail, counter] : tails[next_start]) {
                     // new tail
@@ -280,34 +308,21 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                                         : 0.0);
                         });
                     // add a new candidate
-                    buf.emplace_back(
-                        std::make_tuple(buf_weight, buf_element, buf_counter));
-                    std::println("Last buf: {}", buf.back());
+                    buf.push({buf_weight, buf_element, buf_counter});
                 }
             }
-            // max number of tails to add
-            // almost always is `top_n` except of rare cases at ends of `doc`
-            auto buf_n = top_n < buf.size() ? top_n : buf.size();
-            // sort all tails by weight
-            std::sort(buf.begin(), buf.end(), [](const auto& a, const auto& b) {
-                return std::get<0>(a) > std::get<0>(b);
-            });
-            // add top candidates to `tails`
 
-            tails[start] = std::vector(buf.cbegin(), buf.cbegin() + buf_n);
-            std::println("Tails after {}: {}", start, tails);
+            // add top candidates to `tails`
+            tails[start] = buf.sorted();
         }
 
         // prepare result container
         std::vector<std::pair<std::vector<uint32_t>, float>> candidates;
         candidates.reserve(tails[0].size());
         // remove counter
-        std::transform(
-            tails[0].cbegin(), tails[0].cend(),
-            std::back_inserter(candidates),
-            [](const auto& element) -> std::pair<std::vector<uint32_t>, float> {
-                return {std::get<1>(element), std::get<0>(element)};
-            });
+        std::transform(tails[0].cbegin(), tails[0].cend(),
+                       std::back_inserter(candidates),
+                       [](const auto& element) { return element(); });
         return candidates;
     }
 
