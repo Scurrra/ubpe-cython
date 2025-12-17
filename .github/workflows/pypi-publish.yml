@@ -30,9 +30,9 @@ jobs:
           python-version: ${{ matrix.py }}
 
       - name: Install Python development headers
-          run: |
-            sudo apt-get update
-            sudo apt-get install -y python3-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-dev
   
 
       - name: Build release distributions
