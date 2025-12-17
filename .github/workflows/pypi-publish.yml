@@ -20,7 +20,7 @@ jobs:
             ubuntu-24.04,
             ubuntu-24.04-arm,
           ]
-        py: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        py: ["3.10-dev", "3.11-dev", "3.12-dev", "3.13-dev", "3.14-dev"]
 
     steps:
       - uses: actions/checkout@v4
@@ -29,10 +29,10 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
 
-      - name: Install Python development headers
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-dev build-essential
+      # - name: Install Python development headers
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y python3-dev build-essential
   
 
       - name: Build release distributions
@@ -61,7 +61,7 @@ jobs:
             macos-15,
             macos-15-intel,
           ]
-        py: ["3.9-dev", "3.10-dev", "3.11-dev", "3.12-dev", "3.13-dev", "3.14-dev"]
+        py: ["3.10-dev", "3.11-dev", "3.12-dev", "3.13-dev", "3.14-dev"]
 
     steps:
       - uses: actions/checkout@v4
@@ -96,7 +96,7 @@ jobs:
             windows-latest,
             windows-11-arm,  
           ]
-        py: ["3.9-dev", "3.10-dev", "3.11-dev", "3.12-dev", "3.13-dev", "3.14-dev"]
+        py: ["3.10-dev", "3.11-dev", "3.12-dev", "3.13-dev", "3.14-dev"]
 
     steps:
       - uses: actions/checkout@v4

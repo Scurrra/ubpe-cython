@@ -8,7 +8,7 @@ ifeq ($(filter $(WINDOWS)%, $(OS)), $(OS))
 	PLATFORM = Windows
 	CXX_FLAGS = -pthread -fno-strict-overflow -Wsign-compare -Wall -std=c++20 -O2
 
-    PYTHON_LIBS_DIR = $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))" || echo $(shell python -c "import sys; print(sys.prefix + '\\libs')"))
+    PYTHON_LIBS_DIR = $(shell echo $(shell python -c "import sys; print(sys.prefix + '\\libs')"))
 	PYTHON_LIB_NAME = $(shell echo python$(shell python -c "import sys; print(sys.version_info[0])")$(shell python -c "import sys; print(sys.version_info[1])"))
 	LDFLAGS = -L$(PYTHON_LIBS_DIR) -l$(PYTHON_LIB_NAME)
 	
