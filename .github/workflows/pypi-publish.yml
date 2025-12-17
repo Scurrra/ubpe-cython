@@ -45,7 +45,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: release-dist-${{ matrix.os }}-${{ matrix.py }}
-          path: dist/
+          path: dist/*.whl
 
   pypi-publish:
     runs-on: ubuntu-latest
