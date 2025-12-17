@@ -17,14 +17,14 @@ else ifeq ($(filter $(MAC_OS)%, $(OS)), $(OS))
 	PLATFORM = macOS
 	CXX_FLAGS = -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2 -I/opt/homebrew/include
 
-	LDFLAGS = -L/opt/homebrew/lib $(shell python3-config --ldflags)
+	LDFLAGS = -L/opt/homebrew/lib $(shell python3-config --ldflags --embed)
 	
 	LIB_FILE = $(LIB_NAME).so
 else	
 	PLATFORM = Linux
 	CXX_FLAGS = -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
 
-	LDFLAGS = $(shell python3-config --ldflags)
+	LDFLAGS = $(shell python3-config --ldflags --embed)
 	
 	LIB_FILE = $(LIB_NAME).so
 endif
