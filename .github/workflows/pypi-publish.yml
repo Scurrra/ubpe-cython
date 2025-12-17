@@ -44,7 +44,7 @@ jobs:
       - name: Upload distributions
         uses: actions/upload-artifact@v6
         with:
-          name: release-dist
+          name: dist-${{ matrix.os }}-${{ matrix.py }}
           path: dist/
 
   pypi-publish:
@@ -61,7 +61,8 @@ jobs:
       - name: Retrieve release distributions
         uses: actions/download-artifact@v6
         with:
-          name: release-dist
+          pattern: dist-*
+          merge-multiple: true
           path: dist/
 
       - name: List Dists
