@@ -10,19 +10,29 @@ endif
 
 # Windows is just *special*
 ifeq ($(DETECTED_OS), Windows)
+	CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -std=c++20 -O2
+
     PYTHON_LIBS_DIR := $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))" || echo $(shell python -c "import sys; print(sys.prefix + '\\libs')"))
 	PYTHON_LIB_NAME := $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LIBRARY'))" || echo python$(shell python -c "import sys; print(sys.version_info[0])")$(shell python -c "import sys; print(sys.version_info[1])").lib)
 	LDFLAGS := -L$(PYTHON_LIBS_DIR) -l$(PYTHON_LIB_NAME)
 	
 	LIB_EXT := pyd
+else ifeq ($(DETECTED_OS), Darwin)
+	CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
+
+	LDFLAGS := $(shell python3-config --ldflags)
+	
+	LIB_EXT := so
 else 
-	LDFLAGS := $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LDFLAGS'))")
+	CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
+
+	LDFLAGS := $(shell python3-config --ldflags)
 	
 	LIB_EXT := so
 endif
 
 CXX := clang++
-CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
+
 CXX_INCLUDE := -Iubpe_cpp/headers -Iubpe_cpp/include
 INCLUDEPY := -I$(shell python -c "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'))")
 
