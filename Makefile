@@ -1,7 +1,5 @@
 LIB_NAME := libubpe
 
-reverse = $(if $(1),$(call reverse,$(wordlist 2,$(words $(1)),$(1)))) $(firstword $(1))
-
 PYTHON_VERSION_FULL := $(shell python --version 2>&1 | awk '{print $$2}')
 PYTHON_MAJOR_VERSION := $(word 1,$(subst ., ,$(PYTHON_VERSION_FULL)))
 PYTHON_MINOR_VERSION := $(word 2,$(subst ., ,$(PYTHON_VERSION_FULL)))
@@ -27,7 +25,7 @@ endif
 CXX := g++
 CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
 CXX_INCLUDE := -Iubpe_cpp/headers -Iubpe_cpp/include
-CYTHON_SPECIFIC_FLAGS := -I$(PYTHON_INCLUDE)
+CYTHON_SPECIFIC_FLAGS := $(firstword $(shell python-config --cflags))
 
 CYTHON_DIR := ubpe_cython
 CYTHON_SRC_DIR := $(CYTHON_DIR)/ubpe
@@ -35,6 +33,9 @@ CYTHON_SRC_DIR := $(CYTHON_DIR)/ubpe
 BUILD_DIR = build
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
+
+print:
+	@echo $(CYTHON_SPECIFIC_FLAGS)
 
 build_cython: cythonize
 	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDE) $(CYTHON_SPECIFIC_FLAGS) -c $(BUILD_DIR)/$(LIB_NAME).cython.cpp -o $(BUILD_DIR)/$(LIB_NAME).cython.o
