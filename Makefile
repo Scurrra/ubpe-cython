@@ -53,7 +53,4 @@ cythonize: $(BUILD_DIR)
 	cython --cplus $(CYTHON_SRC_DIR)/$(LIB_NAME).pyx -o $(BUILD_DIR)/$(LIB_NAME).cython.cpp
 
 build_lib: print build_cython
-	$(CXX) $(CXX_FLAGS) -shared $(LDFLAGS) $(BUILD_DIR)/$(LIB_NAME).cython.o -o $(BUILD_DIR)/$(LIB_FILE)
-
-copy_lib: # $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT)
-	cp $(BUILD_DIR)/$(LIB_FILE) $(CYTHON_DIR)/$(LIB_FILE)
+	$(CXX) $(CXX_FLAGS) -shared $(LDFLAGS) $(BUILD_DIR)/$(LIB_NAME).cython.o -o $(CYTHON_DIR)/$(LIB_FILE)
