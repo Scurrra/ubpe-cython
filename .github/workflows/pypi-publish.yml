@@ -35,8 +35,9 @@ jobs:
 
       - name: Build release distributions
         run: |
-          python3 -m pip install --user pipx cython
-          python3 -m pipx ensurepath
+          pip install --user pipx
+          pip install Cython
+          pipx ensurepath
           pipx install poetry
           poetry install --no-interaction --no-root
           make build_lib
