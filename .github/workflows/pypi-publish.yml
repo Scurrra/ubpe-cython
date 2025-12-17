@@ -34,7 +34,7 @@ jobs:
         run: |
           python3 -m pip install --user pipx
           pipx install poetry
-          poetry install
+          poetry install --no-interaction --no-root
           make build_lib
           make copy_lib
           poetry build --format wheel
