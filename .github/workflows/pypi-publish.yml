@@ -32,7 +32,8 @@ jobs:
 
       - name: Build release distributions
         run: |
-          pip install poetry
+          python3 -m pip install --user pipx
+          pipx install poetry
           poetry install
           make build_lib
           make copy_lib
