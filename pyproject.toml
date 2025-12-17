@@ -11,7 +11,7 @@ classifiers = [
     "Programming Language :: Cython",
     "Programming Language :: C++"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = []
 
 [project.urls]
