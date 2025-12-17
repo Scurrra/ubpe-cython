@@ -43,7 +43,6 @@ jobs:
           pipx install poetry
           poetry install --no-interaction --no-root
           make build_lib OS=${{ matrix.os }}
-          make copy_lib
           poetry build --format wheel
 
       - name: Upload distributions
@@ -79,7 +78,6 @@ jobs:
           pipx install poetry
           poetry install --no-interaction --no-root
           make build_lib OS=${{ matrix.os }}
-          make copy_lib
           poetry build --format wheel
 
       - name: Upload distributions
@@ -115,7 +113,6 @@ jobs:
           pipx install poetry
           poetry install --no-interaction --no-root
           make build_lib OS=${{ matrix.os }}
-          make copy_lib
           poetry build --format wheel
 
       - name: Upload distributions

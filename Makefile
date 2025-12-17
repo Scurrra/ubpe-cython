@@ -15,9 +15,9 @@ ifeq ($(filter $(WINDOWS)%, $(OS)), $(OS))
 	LIB_FILE = $(LIB_NAME).pyd
 else ifeq ($(filter $(MAC_OS)%, $(OS)), $(OS))
 	PLATFORM = macOS
-	CXX_FLAGS = -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
+	CXX_FLAGS = -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2 -I/opt/homebrew/include
 
-	LDFLAGS = $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LDFLAGS'))")
+	LDFLAGS = -L/opt/homebrew/lib $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LDFLAGS'))")
 	
 	LIB_FILE = $(LIB_NAME).so
 else	
