@@ -1,7 +1,7 @@
 LIB_NAME := libubpe
 
 # Detect the operating system
-ifeq ($(OS), Windows_NT)
+ifeq ($(OS), Windows)
     DETECTED_OS := Windows	
 else
     # Use 'uname -s' to get the system name (Linux, Darwin, etc.)
