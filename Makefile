@@ -21,7 +21,7 @@ else
 	LIB_EXT := so
 endif
 
-CXX := g++
+CXX := clang++
 CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
 CXX_INCLUDE := -Iubpe_cpp/headers -Iubpe_cpp/include
 INCLUDEPY := -I$(shell python -c "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'))")
