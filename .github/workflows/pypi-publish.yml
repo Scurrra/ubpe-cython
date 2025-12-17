@@ -42,7 +42,7 @@ jobs:
           pipx ensurepath
           pipx install poetry
           poetry install --no-interaction --no-root
-          make build_lib
+          make build_lib OS=${{ matrix.os }}
           make copy_lib
           poetry build --format wheel
 
@@ -78,7 +78,7 @@ jobs:
           pipx ensurepath
           pipx install poetry
           poetry install --no-interaction --no-root
-          make build_lib
+          make build_lib OS=${{ matrix.os }}
           make copy_lib
           poetry build --format wheel
 
@@ -114,7 +114,7 @@ jobs:
           pipx ensurepath
           pipx install poetry
           poetry install --no-interaction --no-root
-          make build_lib
+          make build_lib OS=${{ matrix.os }}
           make copy_lib
           poetry build --format wheel
 
