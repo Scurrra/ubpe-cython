@@ -8,7 +8,7 @@ ifeq ($(filter $(WINDOWS)%, $(OS)), $(OS))
 	PLATFORM = Windows
 	CXX_FLAGS = -pthread -fno-strict-overflow -Wsign-compare -Wall -std=c++20 -O2
 
-    PYTHON_LIBS_DIR = $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))" || echo $(shell python -c "import sys; print(sys.prefix + '\\libs')"))
+    PYTHON_LIBS_DIR = $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))" || echo $(shell python -c "import sys; print(sys.prefix + '/libs')"))
 	PYTHON_LIB_NAME = $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LIBRARY'))" || echo python$(shell python -c "import sys; print(sys.version_info[0])")$(shell python -c "import sys; print(sys.version_info[1])").lib)
 	LDFLAGS = -L$(PYTHON_LIBS_DIR) -l$(PYTHON_LIB_NAME)
 	
@@ -52,7 +52,7 @@ build_cython: cythonize
 cythonize: $(BUILD_DIR)
 	cython --cplus $(CYTHON_SRC_DIR)/$(LIB_NAME).pyx -o $(BUILD_DIR)/$(LIB_NAME).cython.cpp
 
-build_lib: build_cython
+build_lib: print build_cython
 	$(CXX) $(CXX_FLAGS) -shared $(LDFLAGS) $(BUILD_DIR)/$(LIB_NAME).cython.o -o $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT)
 
 copy_lib: $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT)
