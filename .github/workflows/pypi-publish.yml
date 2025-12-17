@@ -44,8 +44,8 @@ jobs:
       - name: Upload distributions
         uses: actions/upload-artifact@v6
         with:
-          name: release-dist-${{ matrix.os }}-${{ matrix.py }}
-          path: dist/*.whl
+          name: release-dist
+          path: dist/
 
   pypi-publish:
     runs-on: ubuntu-latest
@@ -61,12 +61,11 @@ jobs:
       - name: Retrieve release distributions
         uses: actions/download-artifact@v6
         with:
-          name: release-dist-${{ matrix.os }}-${{ matrix.py }}
+          name: release-dist
+          path: dist/
 
       - name: List Dists
-        run: ls -lisa
+        run: ls -lisa dist/
 
       - name: Publish release distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
