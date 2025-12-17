@@ -37,6 +37,7 @@ jobs:
           python3 -m pip install --user pipx
           python3 -m pipx ensurepath
           pipx install poetry
+          poetry add --group=build cython
           poetry install --no-interaction --no-root
           make build_lib
           make copy_lib
