@@ -22,7 +22,8 @@ endif
 CXX := g++
 CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
 CXX_INCLUDE := -Iubpe_cpp/headers -Iubpe_cpp/include
-PYTHON_DEV_HEADERS := -I$(shell python -c "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'))")
+INCLUDEPY := -I$(shell python -c "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'))")
+LDFLAGS := $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LDFLAGS'))")
 
 CYTHON_DIR := ubpe_cython
 CYTHON_SRC_DIR := $(CYTHON_DIR)/ubpe
@@ -32,13 +33,13 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 build_cython: cythonize
-	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDE) $(PYTHON_DEV_HEADERS) -c $(BUILD_DIR)/$(LIB_NAME).cython.cpp -o $(BUILD_DIR)/$(LIB_NAME).cython.o
+	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDE) $(INCLUDEPY) -c $(BUILD_DIR)/$(LIB_NAME).cython.cpp -o $(BUILD_DIR)/$(LIB_NAME).cython.o
 
 cythonize: $(BUILD_DIR)
 	cython --cplus $(CYTHON_SRC_DIR)/$(LIB_NAME).pyx -o $(BUILD_DIR)/$(LIB_NAME).cython.cpp
 
 build_lib: build_cython
-	$(CXX) $(CXX_FLAGS) -shared $(BUILD_DIR)/$(LIB_NAME).cython.o -o $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT)
+	$(CXX) $(CXX_FLAGS) -shared $(LDFLAGS) $(BUILD_DIR)/$(LIB_NAME).cython.o -o $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT)
 
 copy_lib: $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT)
 	cp $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT) $(CYTHON_DIR)/$(LIB_NAME).$(LIB_EXT)
