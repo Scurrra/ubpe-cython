@@ -14,18 +14,15 @@ endif
 
 # Windows is just *special*
 ifeq ($(DETECTED_OS),Windows)
-    # I don't use windows, so it's only for the github actions
-	PYTHON_INCLUDE := $(LOCALAPPDATA)/Programs/Python/Python$(PYTHON_MAJOR_VERSION)$(PYTHON_MINOR_VERSION)/include
-	LIB_EXT := pyd
+    LIB_EXT := pyd
 else 
-	PYTHON_INCLUDE := /usr/include/python$(PYTHON_MAJOR_VERSION).$(PYTHON_MINOR_VERSION)
 	LIB_EXT := so
 endif
 
 CXX := g++
 CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
 CXX_INCLUDE := -Iubpe_cpp/headers -Iubpe_cpp/include
-CYTHON_SPECIFIC_FLAGS := $(shell python3-config --includes)
+PYTHON_DEV_HEADERS := -I$(shell python -c "import sysconfig; print(sysconfig.get_config_var('INCLUDEPY'))")
 
 CYTHON_DIR := ubpe_cython
 CYTHON_SRC_DIR := $(CYTHON_DIR)/ubpe
@@ -35,13 +32,13 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 build_cython: cythonize
-	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDE) $(CYTHON_SPECIFIC_FLAGS) -c $(BUILD_DIR)/$(LIB_NAME).cython.cpp -o $(BUILD_DIR)/$(LIB_NAME).cython.o
+	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDE) $(PYTHON_DEV_HEADERS) -c $(BUILD_DIR)/$(LIB_NAME).cython.cpp -o $(BUILD_DIR)/$(LIB_NAME).cython.o
 
 cythonize: $(BUILD_DIR)
 	cython --cplus $(CYTHON_SRC_DIR)/$(LIB_NAME).pyx -o $(BUILD_DIR)/$(LIB_NAME).cython.cpp
 
 build_lib: build_cython
-	$(CXX) $(CXX_FLAGS) $(CXX_INCLUDE) $(CYTHON_SPECIFIC_FLAGS) -shared $(BUILD_DIR)/$(LIB_NAME).cython.o -o $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT)
+	$(CXX) $(CXX_FLAGS) -shared $(BUILD_DIR)/$(LIB_NAME).cython.o -o $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT)
 
 copy_lib: $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT)
 	cp $(BUILD_DIR)/$(LIB_NAME).$(LIB_EXT) $(CYTHON_DIR)/$(LIB_NAME).$(LIB_EXT)
