@@ -24,7 +24,7 @@ jobs:
             windows-latest,
             windows-11-arm,  
           ]
-        py: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        py: ["3.9-dev", "3.10-dev", "3.11-dev", "3.12-dev", "3.13-dev", "3.14-dev"]
 
     steps:
       - uses: actions/checkout@v4
