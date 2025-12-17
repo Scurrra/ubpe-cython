@@ -1,15 +1,7 @@
 LIB_NAME := libubpe
 
-# Detect the operating system
-ifeq ($(OS), Windows)
-    DETECTED_OS := Windows	
-else
-    # Use 'uname -s' to get the system name (Linux, Darwin, etc.)
-    DETECTED_OS := $(shell uname -s)
-endif
-
 # Windows is just *special*
-ifeq ($(DETECTED_OS), Windows)
+ifeq ($(OS), Windows)
 	CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -std=c++20 -O2
 
     PYTHON_LIBS_DIR := $(shell python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))" || echo $(shell python -c "import sys; print(sys.prefix + '\\libs')"))
@@ -17,7 +9,7 @@ ifeq ($(DETECTED_OS), Windows)
 	LDFLAGS := -L$(PYTHON_LIBS_DIR) -l$(PYTHON_LIB_NAME)
 	
 	LIB_EXT := pyd
-else ifeq ($(DETECTED_OS), Darwin)
+else ifeq ($(OS), macOS)
 	CXX_FLAGS := -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
 
 	LDFLAGS := $(shell python3-config --ldflags)
