@@ -1,8 +1,8 @@
 LIB_NAME := libubpe
 
-WINDOWS := windows
 
 # Windows is just *special*
+WINDOWS := windows
 ifeq ($(filter $(WINDOWS)%, $(OS)), $(OS))
 	CXX_FLAGS = -fno-strict-overflow -Wsign-compare -Wall -std=c++20 -O2
 
