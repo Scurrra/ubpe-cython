@@ -38,10 +38,10 @@ class Counter {
         }
     }
 
-    typedef std::map<T, size_t>::const_iterator const_iterator;
-    typedef std::map<T, size_t>::iterator iterator;
-    typedef std::map<T, size_t>::reference reference;
-    typedef std::map<T, size_t>::const_reference const_reference;
+    typedef typename std::map<T, size_t>::const_iterator const_iterator;
+    typedef typename std::map<T, size_t>::iterator iterator;
+    typedef typename std::map<T, size_t>::reference reference;
+    typedef typename std::map<T, size_t>::const_reference const_reference;
 
     iterator begin() { return this->counter.begin(); }
 
