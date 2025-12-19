@@ -1,4 +1,4 @@
-__version__ = "0.2.0-rc6"
+__version__ = "0.2.0-rc7"
 
 from .libubpe import UBPEClassic, UBPE
 
