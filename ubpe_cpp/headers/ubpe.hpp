@@ -69,7 +69,7 @@ bool operator>(const EncodingCandidate& lhs, const EncodingCandidate& rhs) {
 
 /// Universal Byte-Pair Encoding, that provides many options of encodings for
 /// the document.
-template <DocumentT DocType, typename TokenType = DocType::value_type>
+template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class Ubpe : public UbpeBase<DocType, TokenType> {
    private:
     SSSTree<std::vector<uint32_t>, uint32_t> lookup;

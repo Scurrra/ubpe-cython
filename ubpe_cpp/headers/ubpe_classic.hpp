@@ -12,7 +12,7 @@
 namespace ubpe {
 
 /// Classic implementation of Byte-Pair Encoding, but for general sequences.
-template <DocumentT DocType, typename TokenType = DocType::value_type>
+template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class UbpeClassic : public UbpeBase<DocType, TokenType> {
    private:
     std::vector<std::vector<uint32_t>> pairs;
@@ -199,8 +199,8 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
         // compute weight of encoded `doc`
         auto counter = Counter<uint32_t>(_doc);
-        auto weight = std::accumulate(
-            counter.cbegin(), counter.cend(), 0.0,
+        float weight = std::accumulate(
+            counter.cbegin(), counter.cend(), 0.0f,
             [this](auto total, auto& element) {
                 return total + (this->tokens_weights.contains(element.first)
                                     ? (1 + std::log(element.second)) *

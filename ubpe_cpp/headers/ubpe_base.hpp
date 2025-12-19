@@ -19,7 +19,7 @@ concept DocumentT = std::ranges::range<T> ||
                     std::is_same_v<std::remove_cvref_t<T>,
                                    std::basic_string<typename T::value_type>>;
 
-template <DocumentT DocType, typename TokenType = DocType::value_type>
+template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class UbpeBase {
    protected:
     uint32_t n_tokens;
@@ -187,10 +187,8 @@ class UbpeBase {
         vec.resize(left + 1);
     }
 
-    /// @brief Convert document of `Ubpe<DocType, TokenType>::DocType` to
-    /// vector of base tokens.
-    /// @param doc Document, i.e. data of type `Ubpe<DocType,
-    /// TokenType>::DocType`.
+    /// @brief Convert document of `DocType` to vector of base tokens.
+    /// @param doc Document, i.e. data of type `DocType`.
     /// @return Vector of base tokens.
     std::vector<uint32_t> _doc_to_vec(const DocType& doc) const {
         std::vector<uint32_t> tokens;
@@ -201,10 +199,9 @@ class UbpeBase {
         return tokens;
     }
 
-    /// @brief Convert vector of base tokens to document of `Ubpe<DocType,
-    /// TokenType>::DocType`.
+    /// @brief Convert vector of base tokens to document of `DocType`.
     /// @param tokens Vector of base tokens.
-    /// @return Document, i.e. data of type `Ubpe<DocType, TokenType>::DocType`.
+    /// @return Document, i.e. data of type `DocType`.
     DocType _vec_to_doc(const std::vector<uint32_t>& tokens) const {
         DocType doc;
         doc.reserve(tokens.size());
