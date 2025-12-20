@@ -38,10 +38,12 @@ class Counter {
         }
     }
 
-    typedef typename std::map<T, size_t>::const_iterator const_iterator;
-    typedef typename std::map<T, size_t>::iterator iterator;
-    typedef typename std::map<T, size_t>::reference reference;
-    typedef typename std::map<T, size_t>::const_reference const_reference;
+    typedef
+        typename std::unordered_map<T, size_t>::const_iterator const_iterator;
+    typedef typename std::unordered_map<T, size_t>::iterator iterator;
+    typedef typename std::unordered_map<T, size_t>::reference reference;
+    typedef
+        typename std::unordered_map<T, size_t>::const_reference const_reference;
 
     iterator begin() { return this->counter.begin(); }
 

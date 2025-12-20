@@ -64,6 +64,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             auto pairs_counter = PairCounter<uint32_t>(_corpus);
             // find most frequent bytepairs, a.k.a. candidates
             auto mc = pairs_counter.most_common(n_candidates);
+            if (mc.size() == 0) break;
 
             // find a banch of new tokens
             // first candidate is always added
@@ -72,9 +73,12 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             // all substituted tokens must be distinct,
             // and `current_set` tracks these tokens
             std::set<uint32_t> current_set = {mc[0].first.first,
-                                              mc[0].first.second};
+                                                        mc[0].first.second};
 
-            for (const auto& [pair2, freq2] : mc) {
+            // check each of top candidates from the second one
+            for (size_t i = 1; i < mc.size(); i++) {
+                const auto& [pair2, freq2] = mc[i];
+
                 if (current_set.contains(pair2.first) ||
                     current_set.contains(pair2.second)) {
                     continue;
@@ -106,8 +110,6 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                              (1 + pairs_counter(pair).first));
                 this->tokens_backward_mapper[max_token] = {pair.first,
                                                            pair.second};
-                this->tokens_forward_mapper[{pair.first, pair.second}] =
-                    max_token;
                 sub[pair.first] = {pair.second, max_token};
             }
 
@@ -123,11 +125,20 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             this->_rearrange_tokens_by_weight();
         }
 
+        std::transform(this->tokens_backward_mapper.cbegin(),
+                       this->tokens_backward_mapper.cend(),
+                       std::inserter(this->tokens_forward_mapper,
+                                     this->tokens_forward_mapper.end()),
+                       [](const auto& mapper)
+                           -> std::pair<std::vector<uint32_t>, uint32_t> {
+                           return {mapper.second, mapper.first};
+                       });
+
         // cache pairs of tokens for encoding
-        std::transform(this->tokens_forward_mapper.cbegin(),
-                       this->tokens_forward_mapper.cend(),
+        std::transform(this->tokens_backward_mapper.cbegin(),
+                       this->tokens_backward_mapper.cend(),
                        std::back_inserter(this->pairs),
-                       [](const auto& element) { return element.first; });
+                       [](const auto& element) { return element.second; });
     }
 
     std::vector<std::pair<std::vector<uint32_t>, float>> encode(
@@ -167,7 +178,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             // all substituted tokens must be distinct,
             // and `current_set` tracks these tokens
             std::set<uint32_t> current_set(this->pairs[i].cbegin(),
-                                           this->pairs[i].cend());
+                                                     this->pairs[i].cend());
 
             // find pairs for replacement
             for (size_t j = i + 1; j < this->pairs.size(); j++) {

@@ -37,8 +37,7 @@ class UbpeBase {
     /// and trims dictionary of the tokenizer to be not greater than
     /// `this.n_tokens`.
     void _rearrange_tokens_by_weight() {
-        assert((this->tokens_forward_mapper.size() != 0 &&
-                this->tokens_backward_mapper.size() != 0 &&
+        assert((this->tokens_backward_mapper.size() != 0 &&
                 this->tokens_weights.size() != 0) &&
                "Can not rearrange non-fitted tokenizer");
 
@@ -92,18 +91,12 @@ class UbpeBase {
 
         // create mapping between old tokens and new tokens
         std::map<uint32_t, uint32_t> transformer;
-        // for (uint32_t i = 0; i < this->alphabet_size; i++) {
-        //     transformer[i] = i;
-        // }
         std::generate_n(std::inserter(transformer, transformer.end()),
                         this->alphabet_size,
                         [i = -1]() mutable -> std::pair<uint32_t, uint32_t> {
                             i++;
                             return {i, i};
                         });
-        // for (uint32_t i = 0; i < buf.size(); i++) {
-        //     transformer[buf[i].first] = this->alphabet_size + i;
-        // }
         std::generate_n(
             std::inserter(transformer, transformer.end()),
             buf.size() - to_delete.size(),
@@ -143,18 +136,6 @@ class UbpeBase {
                 return {mapper.second, new_sequence};
             });
         this->tokens_backward_mapper = std::move(tokens_backward_mapper);
-
-        // update forward mapper
-        std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper;
-        std::transform(
-            this->tokens_backward_mapper.cbegin(),
-            this->tokens_backward_mapper.cend(),
-            std::inserter(tokens_forward_mapper, tokens_forward_mapper.end()),
-            [](const auto& element)
-                -> std::pair<std::vector<uint32_t>, uint32_t> {
-                return {element.second, element.first};
-            });
-        this->tokens_forward_mapper = std::move(tokens_forward_mapper);
     }
 
     /// @brief Function for replacing pair of adjacent tokens in a list with a

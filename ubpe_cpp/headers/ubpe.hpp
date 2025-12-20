@@ -124,6 +124,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             auto pairs_counter = PairCounter<uint32_t>(_corpus);
             // find most frequent bytepairs, a.k.a. candidates
             auto mc = pairs_counter.most_common(n_candidates);
+            if (mc.size() == 0) break;
 
             // find a banch of new tokens
             // first candidate is always added
@@ -132,10 +133,12 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             // all substituted tokens must be distinct,
             // and `current_set` tracks these tokens
             std::set<uint32_t> current_set = {mc[0].first.first,
-                                              mc[0].first.second};
+                                                        mc[0].first.second};
 
-            // check each of top candidates
-            for (const auto& [pair2, freq2] : mc) {
+            // check each of top candidates from the second one
+            for (size_t i = 1; i < mc.size(); i++) {
+                const auto& [pair2, freq2] = mc[i];
+
                 if (current_set.contains(pair2.first) ||
                     current_set.contains(pair2.second)) {
                     continue;
@@ -186,7 +189,6 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                 }
 
                 this->tokens_backward_mapper[max_token] = tokens_map;
-                this->tokens_forward_mapper[tokens_map] = max_token;
                 sub[pair.first] = {pair.second, max_token};
             }
 
@@ -201,6 +203,15 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         if (rearrange_tokens) {
             this->_rearrange_tokens_by_weight();
         }
+
+        std::transform(this->tokens_backward_mapper.cbegin(),
+                       this->tokens_backward_mapper.cend(),
+                       std::inserter(this->tokens_forward_mapper,
+                                     this->tokens_forward_mapper.end()),
+                       [](const auto& mapper)
+                           -> std::pair<std::vector<uint32_t>, uint32_t> {
+                           return {mapper.second, mapper.first};
+                       });
 
         // cache lookup of tokens for encoding
         for (const auto& [key, value] : this->inverse_alphabet) {
