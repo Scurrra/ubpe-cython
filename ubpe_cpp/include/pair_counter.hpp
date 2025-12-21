@@ -13,7 +13,7 @@
 namespace ubpe {
 
 /// @brief Class for counting of occurences of adjacent pairs in the corpus.
-template <typename T>
+template <Hashable T>
 class PairCounter {
    private:
     std::unordered_map<std::pair<T, T>, size_t, PairHash<T>> pairs_counter;
