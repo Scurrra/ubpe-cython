@@ -3,11 +3,12 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <map>
-#include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "top_elements.hpp"
+#include "utils.hpp"
 
 namespace ubpe {
 
@@ -15,8 +16,8 @@ namespace ubpe {
 template <typename T>
 class PairCounter {
    private:
-    std::map<std::pair<T, T>, size_t> pairs_counter;
-    std::map<std::pair<T, T>, size_t> docs_counter;
+    std::unordered_map<std::pair<T, T>, size_t, PairHash<T>> pairs_counter;
+    std::unordered_map<std::pair<T, T>, size_t, PairHash<T>> docs_counter;
 
    public:
     PairCounter() = default;
@@ -42,7 +43,7 @@ class PairCounter {
         }
 
         // update with unique adjacent pairs
-        std::set<std::pair<T, T>> unique_pairs;
+        std::unordered_set<std::pair<T, T>, PairHash<T>> unique_pairs;
         std::transform(
             doc.cbegin(), doc.cend() - 1, doc.cbegin() + 1,
             std::inserter(unique_pairs, unique_pairs.end()),

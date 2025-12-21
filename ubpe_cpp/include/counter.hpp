@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <map>
+#include <unordered_map>
 #include <vector>
 
 #include "top_elements.hpp"
@@ -13,7 +13,7 @@ namespace ubpe {
 template <typename T>
 class Counter {
    private:
-    std::map<T, size_t> counter;
+    std::unordered_map<T, size_t> counter;
 
    public:
     Counter() = default;
