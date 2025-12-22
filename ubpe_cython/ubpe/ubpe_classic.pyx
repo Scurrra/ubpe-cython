@@ -3,7 +3,6 @@ import json
 
 from cython.operator cimport dereference as deref
 from libc.stdint cimport uint32_t, uint8_t
-from libcpp cimport bool
 from libcpp.map cimport map
 from libcpp.memory cimport unique_ptr, make_unique
 from libcpp.string cimport string
@@ -100,11 +99,11 @@ cdef class UbpeClassicInt:
         )
         return self
 
-    def fit(self, vector[vector[int]] corpus, uint32_t n_candidates, bool rearrange_tokens):
-        deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
+    def fit(self, vector[vector[int]] corpus, uint32_t top_n = 50, bint rearrange_tokens = True):
+        deref(self.inner).fit(corpus, n_candidates, top_n)
 
-    def encode(self, vector[int] doc, uint8_t top_n = 1):
-        return deref(self.inner).encode(doc, top_n)
+    def encode(self, vector[int] doc, uint8_t n_candidates = 1):
+        return deref(self.inner).encode(doc, n_candidates)
 
     def decode(self, vector[uint32_t] tokens):
         return deref(self.inner).decode(tokens)
@@ -196,11 +195,11 @@ cdef class UbpeClassicChar:
         )
         return self
 
-    def fit(self, vector[string] corpus, uint32_t n_candidates, bool rearrange_tokens):
-        deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
+    def fit(self, vector[string] corpus, uint32_t top_n = 50, bint rearrange_tokens = True):
+        deref(self.inner).fit(corpus, n_candidates, top_n)
 
-    def encode(self, string doc, top_n=1):
-        return deref(self.inner).encode(doc, top_n)
+    def encode(self, string doc, uint8_t n_candidates = 1):
+        return deref(self.inner).encode(doc, n_candidates)
 
     def decode(self, vector[uint32_t] tokens):
         return deref(self.inner).decode(tokens)

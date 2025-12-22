@@ -3,7 +3,6 @@ import json
 
 from cython.operator cimport dereference as deref
 from libc.stdint cimport uint32_t, uint8_t
-from libcpp cimport bool
 from libcpp.map cimport map
 from libcpp.memory cimport unique_ptr, make_unique
 from libcpp.string cimport string
@@ -46,7 +45,7 @@ cdef class UbpeInt:
             
         _n_tokens = n_tokens
         _alphabet_size = alphabet_size
-        for key, value in alphabet.items():
+        for key, value in alphabet:
             _alphabet.insert((key, value))    
         self.inner = make_unique[Ubpe[vector[int], int]](_n_tokens, _alphabet_size, _alphabet)
 
@@ -60,9 +59,9 @@ cdef class UbpeInt:
         return json.dumps(
             {
                 "n_tokens": len(alphabet) + len(tokens_mapper),
-                "alphabet": alphabet,
-                "mapper": tokens_mapper,
-                "weights": tokens_weights,
+                "alphabet": { int(key): value for key, value in alphabet },
+                "mapper": { int(key): value for key, value in tokens_mapper },
+                "weights": { int(key): value for key, value in tokens_weights },
             }
         )
 
@@ -83,13 +82,13 @@ cdef class UbpeInt:
         n_tokens = model["n_tokens"]
         alphabet = model["alphabet"]
         alphabet_size = len(model["alphabet"])
-        for key, value in model["alphabet"].items():
+        for key, value in model["alphabet"]:
             inverse_alphabet.insert((value, key))
-        for token, seq in model["mapper"].items():
+        for token, seq in model["mapper"]:
             tokens_forward_mapping.insert((token, seq))
-        for token, seq in model["mapper"].items():
+        for token, seq in model["mapper"]:
             tokens_backward_mapping.insert((seq, token))
-        for token, weight in model["weights"].items():
+        for token, weight in model["weights"]:
             tokens_weights.insert((token, weight))
         
         self.inner = make_unique[Ubpe[vector[int], int]](
@@ -100,7 +99,7 @@ cdef class UbpeInt:
         )
         return self
 
-    def fit(self, vector[vector[int]] corpus, uint32_t n_candidates, bool rearrange_tokens):
+    def fit(self, vector[vector[int]] corpus, uint32_t n_candidates = 50, bint rearrange_tokens = True):
         deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
 
     def encode(self, vector[int] doc, uint8_t top_n = 1):
@@ -142,7 +141,7 @@ cdef class UbpeChar:
             
         _n_tokens = n_tokens
         _alphabet_size = alphabet_size
-        for key, value in alphabet.items():
+        for key, value in alphabet:
             _alphabet.insert((key, value))    
         self.inner = make_unique[Ubpe[string, char]](_n_tokens, _alphabet_size, _alphabet)
 
@@ -157,8 +156,8 @@ cdef class UbpeChar:
             {
                 "n_tokens": len(alphabet) + len(tokens_mapper),
                 "alphabet": alphabet,
-                "mapper": tokens_mapper,
-                "weights": tokens_weights,
+                "mapper": { int(key): value for key, value in tokens_mapper },
+                "weights": { int(key): value for key, value in tokens_weights },
             }
         )
 
@@ -179,13 +178,13 @@ cdef class UbpeChar:
         n_tokens = model["n_tokens"]
         alphabet = model["alphabet"]
         alphabet_size = len(model["alphabet"])
-        for key, value in model["alphabet"].items():
+        for key, value in model["alphabet"]:
             inverse_alphabet.insert((value, key))
-        for token, seq in model["mapper"].items():
+        for token, seq in model["mapper"]:
             tokens_forward_mapping.insert((token, seq))
-        for token, seq in model["mapper"].items():
+        for token, seq in model["mapper"]:
             tokens_backward_mapping.insert((seq, token))
-        for token, weight in model["weights"].items():
+        for token, weight in model["weights"]:
             tokens_weights.insert((token, weight))
         
         self.inner = make_unique[Ubpe[string, char]](
@@ -196,11 +195,11 @@ cdef class UbpeChar:
         )
         return self
 
-    def fit(self, vector[string] corpus, uint32_t n_candidates, bool rearrange_tokens):
-        deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
+    def fit(self, vector[string] corpus, uint32_t top_n = 50, bint rearrange_tokens = True):
+        deref(self.inner).fit(corpus, n_candidates, top_n)
 
-    def encode(self, string doc, top_n=1):
-        return deref(self.inner).encode(doc, top_n)
+    def encode(self, string doc, uint8_t n_candidates = 1):
+        return deref(self.inner).encode(doc, n_candidates)
 
     def decode(self, vector[uint32_t] tokens):
         return deref(self.inner).decode(tokens)

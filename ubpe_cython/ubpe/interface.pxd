@@ -1,5 +1,4 @@
 from libc.stdint cimport uint32_t, uint8_t
-from libcpp cimport bool
 from libcpp.map cimport map
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
@@ -11,9 +10,9 @@ cdef extern from "ubpe_classic.hpp" namespace "ubpe":
         UbpeClassic(uint32_t, uint32_t, map[TokenType, uint32_t]) except +
         UbpeClassic(uint32_t, uint32_t, map[TokenType, uint32_t], map[uint32_t, TokenType], map[vector[uint32_t], uint32_t], map[uint32_t, vector[uint32_t]], map[uint32_t, double]) except +
 
-        void fit(const vector[DocType]& corpus, uint32_t n_candidates, bool rearrange_tokens) except +
+        void fit(const vector[DocType]& corpus, uint32_t n_candidates, bint rearrange_tokens) except +
 
-        vector[pair[vector[uint32_t], double]] encode(const DocType& doc, uint8_t) except +
+        vector[pair[vector[uint32_t], double]] encode(const DocType& doc, uint8_t top_n) except +
 
         DocType decode(const vector[uint32_t]& tokens) except +
 
@@ -35,9 +34,9 @@ cdef extern from "ubpe.hpp" namespace "ubpe":
         Ubpe(uint32_t, uint32_t, map[TokenType, uint32_t]) except +
         Ubpe(uint32_t, uint32_t, map[TokenType, uint32_t], map[uint32_t, TokenType], map[vector[uint32_t], uint32_t], map[uint32_t, vector[uint32_t]], map[uint32_t, double]) except +
 
-        void fit(const vector[DocType]& corpus, uint32_t n_candidates, bool rearrange_tokens) except +
+        void fit(const vector[DocType]& corpus, uint32_t n_candidates, bint rearrange_tokens) except +
 
-        vector[pair[vector[uint32_t], double]] encode(const DocType& doc, uint8_t n_candidates) except +
+        vector[pair[vector[uint32_t], double]] encode(const DocType& doc, uint8_t top_n) except +
 
         DocType decode(const vector[uint32_t]& tokens) except +
 
