@@ -65,7 +65,8 @@ cdef class UbpeClassicInt:
             }
         )
 
-    def loads(self, dump: str):
+    @classmethod
+    def loads(cls, dump: str):
         """
         Load a tokenizer model from a json-serialized string.
         """
@@ -80,24 +81,24 @@ cdef class UbpeClassicInt:
         model = json.loads(dump)
 
         n_tokens = model["n_tokens"]
-        alphabet = model["alphabet"]
         alphabet_size = len(model["alphabet"])
         for key, value in model["alphabet"].items():
-            inverse_alphabet.insert((value, key))
+            inverse_alphabet.insert((value, int(key)))
+            alphabet.insert((int(key), value))
         for token, seq in model["mapper"].items():
-            tokens_forward_mapping.insert((token, seq))
-        for token, seq in model["mapper"].items():
-            tokens_backward_mapping.insert((seq, token))
+            tokens_backward_mapping.insert((int(token), seq))
+            tokens_forward_mapping.insert((seq, int(token)))
         for token, weight in model["weights"].items():
-            tokens_weights.insert((token, weight))
+            tokens_weights.insert((int(token), weight))
         
-        self.inner = make_unique[UbpeClassic[vector[int], int]](
+        cdef UbpeClassicInt inst = cls(alphabet_size=0)
+        inst.inner = make_unique[UbpeClassic[vector[int], int]](
             n_tokens, alphabet_size,
             alphabet, inverse_alphabet, 
             tokens_forward_mapping, tokens_backward_mapping,
             tokens_weights
         )
-        return self
+        return inst
 
     def fit(self, vector[vector[int]] corpus, uint32_t n_candidates = 50, bint rearrange_tokens = True):
         deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
@@ -161,7 +162,8 @@ cdef class UbpeClassicChar:
             }
         )
 
-    def loads(self, dump: str):
+    @classmethod
+    def loads(cls, dump: str):
         """
         Load a tokenizer model from a json-serialized string.
         """
@@ -176,24 +178,24 @@ cdef class UbpeClassicChar:
         model = json.loads(dump)
 
         n_tokens = model["n_tokens"]
-        alphabet = model["alphabet"]
         alphabet_size = len(model["alphabet"])
         for key, value in model["alphabet"].items():
-            inverse_alphabet.insert((value, key))
+            inverse_alphabet.insert((value, str(key)))
+            alphabet.insert((str(key), value))
         for token, seq in model["mapper"].items():
-            tokens_forward_mapping.insert((token, seq))
-        for token, seq in model["mapper"].items():
-            tokens_backward_mapping.insert((seq, token))
+            tokens_backward_mapping.insert((str(token), seq))
+            tokens_forward_mapping.insert((seq, str(token)))
         for token, weight in model["weights"].items():
-            tokens_weights.insert((token, weight))
+            tokens_weights.insert((str(token), weight))
         
-        self.inner = make_unique[UbpeClassic[string, char]](
+        cdef UbpeClassicChar inst = cls(alphabet_size=0)
+        inst.inner = make_unique[UbpeClassic[string, char]](
             n_tokens, alphabet_size,
             alphabet, inverse_alphabet, 
             tokens_forward_mapping, tokens_backward_mapping,
             tokens_weights
         )
-        return self
+        return inst
 
     def fit(self, vector[string] corpus, uint32_t n_candidates = 50, bint rearrange_tokens = True):
         deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
