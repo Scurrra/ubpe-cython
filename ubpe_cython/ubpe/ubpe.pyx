@@ -195,11 +195,11 @@ cdef class UbpeChar:
         )
         return self
 
-    def fit(self, vector[string] corpus, uint32_t top_n = 50, bint rearrange_tokens = True):
-        deref(self.inner).fit(corpus, n_candidates, top_n)
+    def fit(self, vector[string] corpus, uint32_t n_candidates = 50, bint rearrange_tokens = True):
+        deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
 
-    def encode(self, string doc, uint8_t n_candidates = 1):
-        return deref(self.inner).encode(doc, n_candidates)
+    def encode(self, string doc, uint8_t top_n = 1):
+        return deref(self.inner).encode(doc, top_n)
 
     def decode(self, vector[uint32_t] tokens):
         return deref(self.inner).decode(tokens)
