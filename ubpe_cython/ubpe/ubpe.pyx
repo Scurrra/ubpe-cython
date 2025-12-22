@@ -76,7 +76,7 @@ cdef class UbpeInt:
         cdef map[uint32_t, int] inverse_alphabet
         cdef map[vector[uint32_t], uint32_t] tokens_forward_mapping
         cdef map[uint32_t, vector[uint32_t]] tokens_backward_mapping
-        cdef map[uint32_t, float] tokens_weights
+        cdef map[uint32_t, double] tokens_weights
 
         model = json.loads(dump)
 
@@ -172,7 +172,7 @@ cdef class UbpeChar:
         cdef map[uint32_t, char] inverse_alphabet
         cdef map[vector[uint32_t], uint32_t] tokens_forward_mapping
         cdef map[uint32_t, vector[uint32_t]] tokens_backward_mapping
-        cdef map[uint32_t, float] tokens_weights
+        cdef map[uint32_t, double] tokens_weights
 
         model = json.loads(dump)
 

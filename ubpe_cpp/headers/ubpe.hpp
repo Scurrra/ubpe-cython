@@ -16,12 +16,12 @@ namespace ubpe {
 /// @brief Information about candidate to be used in selection with
 /// `ubpe::TopElements`.
 struct EncodingCandidate {
-    float weight;
+    double weight;
     std::vector<uint32_t> sequence;
     ubpe::Counter<uint32_t> counter;
 
     EncodingCandidate() = default;
-    EncodingCandidate(float weight, std::vector<uint32_t> sequence,
+    EncodingCandidate(double weight, std::vector<uint32_t> sequence,
                       ubpe::Counter<uint32_t> counter)
         : weight(weight), sequence(sequence), counter(counter) {}
     EncodingCandidate(const EncodingCandidate&) = default;
@@ -48,7 +48,7 @@ struct EncodingCandidate {
     }
 
     /// @brief Construct a sequence-weight pair from the candidate.
-    std::pair<std::vector<uint32_t>, float> operator()() const {
+    std::pair<std::vector<uint32_t>, double> operator()() const {
         return {this->sequence, this->weight};
     }
 };
@@ -87,7 +87,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
          std::map<uint32_t, TokenType> inverse_alphabet,
          std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
          std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
-         std::map<uint32_t, float> tokens_weights)
+         std::map<uint32_t, double> tokens_weights)
         : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
                                        inverse_alphabet, tokens_forward_mapper,
                                        tokens_backward_mapper, tokens_weights) {
@@ -167,7 +167,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             for (const auto& [pair, _] : token_pairs) {
                 max_token++;
                 this->tokens_weights[max_token] =
-                    std::log(static_cast<float>(1 + corpus.size()) /
+                    std::log(static_cast<double>(1 + corpus.size()) /
                              (1 + pairs_counter(pair).first));
                 // merge subsequences
                 std::vector<uint32_t> tokens_map;
@@ -223,7 +223,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         }
     }
 
-    std::vector<std::pair<std::vector<uint32_t>, float>> encode(
+    std::vector<std::pair<std::vector<uint32_t>, double>> encode(
         const DocType& doc, uint8_t top_n = 1) const override {
         assert((!this->lookup.empty()) && "Tokenizer was not fitted");
         assert((this->tokens_forward_mapper.size() != 0 &&
@@ -308,9 +308,9 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                     auto buf_counter = counter;
                     buf_counter[token]++;
                     // weight of the tail
-                    float buf_weight = std::accumulate(
+                    double buf_weight = std::accumulate(
                         buf_counter.cbegin(), buf_counter.cend(), 0.0f,
-                        [this](float total, const auto& element) {
+                        [this](double total, const auto& element) {
                             return total +
                                    (this->tokens_weights.contains(element.first)
                                         ? (1 + std::log(element.second)) *
@@ -328,7 +328,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         }
 
         // prepare result container
-        std::vector<std::pair<std::vector<uint32_t>, float>> candidates;
+        std::vector<std::pair<std::vector<uint32_t>, double>> candidates;
         candidates.reserve(tails[0].size());
         // remove counter
         std::transform(tails[0].cbegin(), tails[0].cend(),

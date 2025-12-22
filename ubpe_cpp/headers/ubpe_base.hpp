@@ -31,7 +31,7 @@ class UbpeBase {
     std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper;
     std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper;
 
-    std::map<uint32_t, float> tokens_weights;
+    std::map<uint32_t, double> tokens_weights;
 
     /// @brief Function that rearranges found tokens according to their weights
     /// and trims dictionary of the tokenizer to be not greater than
@@ -47,10 +47,11 @@ class UbpeBase {
             this->tokens_backward_mapper.cend());
 
         // sort buffer
-        std::sort(buf.begin(), buf.end(), [this](const auto& a, const auto& b) {
-            return this->tokens_weights[a.first] <
-                   this->tokens_weights[b.first];
-        });
+        std::stable_sort(buf.begin(), buf.end(),
+                         [this](const auto& a, const auto& b) {
+                             return this->tokens_weights[a.first] <
+                                    this->tokens_weights[b.first];
+                         });
 
         // min number of tokens to delete
         auto to_delete_quantity =
@@ -108,12 +109,12 @@ class UbpeBase {
             });
 
         // drop weights for deleted tokens
-        std::map<uint32_t, float> tokens_weights;
+        std::map<uint32_t, double> tokens_weights;
         std::transform(
             std::next(transformer.cbegin(), this->alphabet_size),
             transformer.cend(),
             std::inserter(tokens_weights, tokens_weights.end()),
-            [this](const auto& mapper) -> std::pair<uint32_t, float> {
+            [this](const auto& mapper) -> std::pair<uint32_t, double> {
                 return {mapper.second, this->tokens_weights[mapper.first]};
             });
         this->tokens_weights = std::move(tokens_weights);
@@ -231,7 +232,7 @@ class UbpeBase {
              std::map<uint32_t, TokenType> inverse_alphabet,
              std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
              std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
-             std::map<uint32_t, float> tokens_weights)
+             std::map<uint32_t, double> tokens_weights)
         : n_tokens(n_tokens),
           alphabet_size(alphabet_size),
           alphabet(alphabet),
@@ -265,7 +266,7 @@ class UbpeBase {
 
     /// @brief Get token weighs.
     /// @return `this.tokens_weights`
-    std::map<uint32_t, float> getTokensWeights() const {
+    std::map<uint32_t, double> getTokensWeights() const {
         return this->tokens_weights;
     }
 
@@ -293,7 +294,7 @@ class UbpeBase {
     /// @param top_n How many candidate ecoding to return; ignored in
     /// `UbpeClassic`.
     /// @return List of encoded documents with weights.
-    virtual std::vector<std::pair<std::vector<uint32_t>, float>> encode(
+    virtual std::vector<std::pair<std::vector<uint32_t>, double>> encode(
         const DocType&, uint8_t = 1) const = 0;
 
     /// @brief Decode a vector of `tokens` with the fitted tokenizer.

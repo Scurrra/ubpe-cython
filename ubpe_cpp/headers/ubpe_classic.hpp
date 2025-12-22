@@ -31,7 +31,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
         std::map<uint32_t, TokenType> inverse_alphabet,
         std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
         std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
-        std::map<uint32_t, float> tokens_weights)
+        std::map<uint32_t, double> tokens_weights)
         : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
                                        inverse_alphabet, tokens_forward_mapper,
                                        tokens_backward_mapper, tokens_weights) {
@@ -73,7 +73,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             // all substituted tokens must be distinct,
             // and `current_set` tracks these tokens
             std::set<uint32_t> current_set = {mc[0].first.first,
-                                                        mc[0].first.second};
+                                              mc[0].first.second};
 
             // check each of top candidates from the second one
             for (size_t i = 1; i < mc.size(); i++) {
@@ -106,7 +106,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             for (const auto& [pair, _] : token_pairs) {
                 max_token++;
                 this->tokens_weights[max_token] =
-                    std::log(static_cast<float>(1 + corpus.size()) /
+                    std::log(static_cast<double>(1 + corpus.size()) /
                              (1 + pairs_counter(pair).first));
                 this->tokens_backward_mapper[max_token] = {pair.first,
                                                            pair.second};
@@ -141,7 +141,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                        [](const auto& element) { return element.second; });
     }
 
-    std::vector<std::pair<std::vector<uint32_t>, float>> encode(
+    std::vector<std::pair<std::vector<uint32_t>, double>> encode(
         const DocType& doc, uint8_t = 1) const override {
         assert((this->pairs.size() != 0) && "Tokenizer was not fitted");
         assert((this->tokens_forward_mapper.size() != 0 &&
@@ -178,7 +178,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             // all substituted tokens must be distinct,
             // and `current_set` tracks these tokens
             std::set<uint32_t> current_set(this->pairs[i].cbegin(),
-                                                     this->pairs[i].cend());
+                                           this->pairs[i].cend());
 
             // find pairs for replacement
             for (size_t j = i + 1; j < this->pairs.size(); j++) {
@@ -210,7 +210,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
         // compute weight of encoded `doc`
         auto counter = Counter<uint32_t>(_doc);
-        float weight = std::accumulate(
+        double weight = std::accumulate(
             counter.cbegin(), counter.cend(), 0.0f,
             [this](auto total, auto& element) {
                 return total + (this->tokens_weights.contains(element.first)
