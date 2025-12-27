@@ -223,4 +223,4 @@ cdef class UbpeClassicChar:
     def decode(self, vector[uint32_t] tokens):
         cdef vector[int] doc
         doc = deref(self.inner).decode(tokens)
-        return [self.inverse_alphabet[token] for token in doc]
+        return "".join(self.inverse_alphabet[token] for token in doc)
