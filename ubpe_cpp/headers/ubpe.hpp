@@ -2,7 +2,9 @@
 #define UBPE_CPP
 
 #include <cmath>
+#include <cstddef>
 #include <numeric>
+#include <optional>
 #include <stack>
 
 #include "counter.hpp"
@@ -133,7 +135,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             // all substituted tokens must be distinct,
             // and `current_set` tracks these tokens
             std::set<uint32_t> current_set = {mc[0].first.first,
-                                                        mc[0].first.second};
+                                              mc[0].first.second};
 
             // check each of top candidates from the second one
             for (size_t i = 1; i < mc.size(); i++) {
@@ -292,39 +294,88 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         tails[_doc.size()] = {
             {0.0, std::vector<uint32_t>{}, Counter<uint32_t>()}};
         // form the end of `doc`
-        for (int start = _doc.size() - 1; start >= 0; start--) {
-            // all candidates from `start`
-            TopElements<EncodingCandidate> buf(top_n);
-            // for each subsequence from `start`
-            for (const auto& [_, node] : nodes[start]) {
-                const auto& [token, next_start] = node;
-                // for each tail that starts where the subsequence ends
-                for (const auto& [_, tail, counter] : tails[next_start]) {
-                    // new tail
-                    std::vector<uint32_t> buf_element = {token};
-                    buf_element.insert(buf_element.end(), tail.cbegin(),
-                                       tail.cend());
-                    // new counter
-                    auto buf_counter = counter;
-                    buf_counter[token]++;
-                    // weight of the tail
-                    double buf_weight = std::accumulate(
-                        buf_counter.cbegin(), buf_counter.cend(), 0.0f,
-                        [this](double total, const auto& element) {
-                            return total +
-                                   (this->tokens_weights.contains(element.first)
-                                        ? (1 + std::log(element.second)) *
-                                              this->tokens_weights.at(
-                                                  element.first)
-                                        : 0.0);
-                        });
-                    // add a new candidate
-                    buf.push({buf_weight, buf_element, buf_counter});
+        if (top_n == 1) {
+            for (int start = _doc.size() - 1; start >= 0; start--) {
+                // best candidate from `start`
+                std::optional<EncodingCandidate> buf = std::nullopt;
+                // for each subsequence from `start`
+                for (const auto& [_, node] : nodes[start]) {
+                    const auto& [token, next_start] = node;
+                    // for each tail that starts where the subsequence ends
+                    for (const auto& [_, tail, counter] : tails[next_start]) {
+                        // new tail
+                        std::vector<uint32_t> buf_element = {token};
+                        buf_element.insert(buf_element.end(), tail.cbegin(),
+                                           tail.cend());
+                        // new counter
+                        auto buf_counter = counter;
+                        buf_counter[token]++;
+                        // weight of the tail
+                        double buf_weight = std::accumulate(
+                            buf_counter.cbegin(), buf_counter.cend(), 0.0f,
+                            [this](double total, const auto& element) {
+                                return total +
+                                       (this->tokens_weights.contains(
+                                            element.first)
+                                            ? (1 + std::log(element.second)) *
+                                                  this->tokens_weights.at(
+                                                      element.first)
+                                            : 0.0);
+                            });
+                        // add a new candidate
+                        if (!buf.has_value()) {
+                            buf = EncodingCandidate(buf_weight, buf_element,
+                                                    buf_counter);
+                        } else {
+                            if ((buf->weight == buf_weight &&
+                                 buf->sequence.size() > buf_element.size()) ||
+                                buf->weight < buf_weight) {
+                                buf = EncodingCandidate(buf_weight, buf_element,
+                                                        buf_counter);
+                            }
+                        }
+                    }
                 }
-            }
 
-            // add top candidates to `tails`
-            tails[start] = buf.sorted();
+                // add top candidate to `tails`
+                tails[start] = {buf.value()};
+            }
+        } else {
+            for (int start = _doc.size() - 1; start >= 0; start--) {
+                // all candidates from `start`
+                TopElements<EncodingCandidate> buf(top_n);
+                // for each subsequence from `start`
+                for (const auto& [_, node] : nodes[start]) {
+                    const auto& [token, next_start] = node;
+                    // for each tail that starts where the subsequence ends
+                    for (const auto& [_, tail, counter] : tails[next_start]) {
+                        // new tail
+                        std::vector<uint32_t> buf_element = {token};
+                        buf_element.insert(buf_element.end(), tail.cbegin(),
+                                           tail.cend());
+                        // new counter
+                        auto buf_counter = counter;
+                        buf_counter[token]++;
+                        // weight of the tail
+                        double buf_weight = std::accumulate(
+                            buf_counter.cbegin(), buf_counter.cend(), 0.0f,
+                            [this](double total, const auto& element) {
+                                return total +
+                                       (this->tokens_weights.contains(
+                                            element.first)
+                                            ? (1 + std::log(element.second)) *
+                                                  this->tokens_weights.at(
+                                                      element.first)
+                                            : 0.0);
+                            });
+                        // add a new candidate
+                        buf.push({buf_weight, buf_element, buf_counter});
+                    }
+                }
+
+                // add top candidates to `tails`
+                tails[start] = buf.sorted();
+            }
         }
 
         // prepare result container
