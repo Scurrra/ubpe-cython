@@ -35,10 +35,10 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
         : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
                                        inverse_alphabet, tokens_forward_mapper,
                                        tokens_backward_mapper, tokens_weights) {
-        std::transform(tokens_forward_mapper.cbegin(),
-                       tokens_forward_mapper.cend(),
+        std::transform(tokens_backward_mapper.cbegin(),
+                       tokens_backward_mapper.cend(),
                        std::back_inserter(this->pairs),
-                       [](const auto& element) { return element.first; });
+                       [](const auto& element) { return element.second; });
     }
 
     UbpeClassic(const UbpeClassic&) = default;
