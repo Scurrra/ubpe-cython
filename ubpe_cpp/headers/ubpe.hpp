@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <numeric>
 #include <optional>
 #include <stack>
@@ -239,8 +240,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         std::vector<uint32_t> _doc = this->_doc_to_vec(doc);
 
         // build initial stack
-        std::stack<std::pair<
-            size_t, std::vector<std::pair<std::vector<uint32_t>, uint32_t>>>>
+        std::stack<std::pair<size_t, std::vector<std::pair<size_t, uint32_t>>>>
             stacks;
         // from start
         size_t start = 0;
@@ -249,17 +249,16 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             // try to find all key-value pairs in lookup tree where keys are
             // subsequences from `start` in `doc`, i.e. basic tokens' sequences
             // from `start` in `doc`
-            auto stack = this->lookup(_doc, start);
+            std::vector<std::pair<size_t, uint32_t>> stack =
+                this->lookup(_doc, start, true);
             // place start-stack pair in `stacks`
             stacks.emplace(std::make_pair(start, stack));
             // next search will start after the longest key found
-            start += stack.back().first.size();
+            start += stack.back().first;
         }
 
         // build nodes
-        std::map<size_t,
-                 std::map<std::vector<uint32_t>, std::pair<uint32_t, size_t>>>
-            nodes;
+        std::map<size_t, std::map<size_t, std::pair<uint32_t, size_t>>> nodes;
         // check all stacks form the end of `doc`
         while (!stacks.empty()) {
             // extract the top stack
@@ -268,19 +267,20 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
             // map which points keys (sequences of basic tokens) to pairs of
             // values and starts of following tokens
-            std::map<std::vector<uint32_t>, std::pair<uint32_t, size_t>> next;
+            std::map<size_t, std::pair<uint32_t, size_t>> next;
             // process each candidate
-            for (const auto& [key, value] : stack) {
+            for (const auto& [key_len, value] : stack) {
                 // compute the start of the following token
-                auto next_key_start = start + key.size();
+                auto next_key_start = start + key_len;
                 // add candidate to the map
-                next[key] = std::make_pair(value, next_key_start);
+                next[key_len] = std::make_pair(value, next_key_start);
                 // check if the following token was already added
                 if (next_key_start != _doc.size() &&
                     !nodes.contains(next_key_start)) {
                     // add new start-stack pairs to `stacks`
                     stacks.emplace(std::make_pair(
-                        next_key_start, this->lookup(_doc, next_key_start)));
+                        next_key_start,
+                        this->lookup(_doc, next_key_start, true)));
                 }
             }
             // create new node
