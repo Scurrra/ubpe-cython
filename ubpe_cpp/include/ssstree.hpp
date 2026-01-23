@@ -9,6 +9,8 @@
 #include <utility>
 #include <vector>
 
+#include "utils.hpp"
+
 namespace ubpe {
 
 template <typename T>
@@ -223,10 +225,11 @@ class SSSTree {
     /// of `key` present in the tree.
     /// @param key Key for lookup.
     /// @returns A vector of key-value pairs in the tree where keys are prefixes
-    /// of `key` present in the tree.
-    std::vector<std::pair<K, V>> operator()(const K& key,
-                                            size_t start = 0) const {
+    /// or lengths of prefixes of `key` present in the tree.
+    variant<std::vector<std::pair<K, V>>, std::vector<std::pair<size_t, V>>>
+    operator()(const K& key, size_t start = 0, bool fast = false) const {
         assert((start < key.size()) || "`start` is out of range");
+
         // search which child may contain `key`
         size_t i = 0;
         while (i < this->children.size()) {
@@ -248,22 +251,41 @@ class SSSTree {
                     return !element.second.has_value();
                 });
 
-                std::vector<std::pair<K, V>> prefixes;
-                prefixes.reserve(stack.size());
-                std::transform(stack.cbegin(), stack.cend(),
-                               std::back_inserter(prefixes),
-                               [](const auto& prefix) -> std::pair<K, V> {
-                                   return {prefix.first, prefix.second.value()};
-                               });
+                if (!fast) {
+                    std::vector<std::pair<K, V>> prefixes;
+                    prefixes.reserve(stack.size());
+                    std::transform(stack.cbegin(), stack.cend(),
+                                   std::back_inserter(prefixes),
+                                   [](const auto& prefix) -> std::pair<K, V> {
+                                       return {prefix.first,
+                                               prefix.second.value()};
+                                   });
 
-                // return the prefixes
-                return prefixes;
+                    // return the prefixes
+                    return prefixes;
+                } else {
+                    std::vector<std::pair<size_t, V>> prefixes;
+                    prefixes.reserve(stack.size());
+                    std::transform(
+                        stack.cbegin(), stack.cend(),
+                        std::back_inserter(prefixes),
+                        [](const auto& prefix) -> std::pair<size_t, V> {
+                            return {prefix.first.size(), prefix.second.value()};
+                        });
+
+                    // return the prefixes
+                    return prefixes;
+                }
             }
             // move to the next child
             i++;
         }
+
         // return empty thing if there is not a subtree that may contain `key`
-        return {};
+        if (fast)
+            return std::vector<std::pair<size_t, V>>{};
+        else
+            return std::vector<std::pair<K, V>>{};
     }
 };
 
