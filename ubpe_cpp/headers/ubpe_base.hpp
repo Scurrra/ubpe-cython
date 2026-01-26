@@ -160,13 +160,17 @@ class UbpeBase {
                 vec[right + 1] == sub.at(vec[right]).first) {
                 // replace `vec[left]` with the new value
                 // and move `right` forward
-                vec[left] = sub.at(vec[right++]).second;
+                vec[left++] = sub.at(vec[right]).second;
+                right += 2;
+            } else {
+                vec[left++] = vec[right++];
             }
-
-            vec[++left] = vec[++right];
         }
+        // optionally add the last token
+        if (right < vec.size()) vec[left++] = vec[right++];
+
         // `left` is the length of a new sequence, so we just resize the old one
-        vec.resize(left + 1);
+        vec.resize(left);
     }
 
     /// @brief Convert document of `DocType` to vector of base tokens.
