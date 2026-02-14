@@ -1,8 +1,5 @@
-__version__ = "0.2.4"
+__version__ = "0.3.0rc1"
 
-from .libubpe import UBPEClassic, UBPE
+from .libubpe import UBPE, UBPEClassic
 
-__all__ = [
-    "UBPEClassic",
-    "UBPE"
-]
+__all__ = ["UBPEClassic", "UBPE"]
