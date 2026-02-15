@@ -13,13 +13,13 @@
 namespace ubpe {
 class Logger;
 
-/// Configuration for progress bar.
+/// @brief Configuration for progress bar.
 struct ProgressConfig {
     std::string unit = "item";
     uint8_t precision = 3;
 };
 
-/// Progress bar for tracking progress of a task.
+/// @brief Progress bar for tracking progress of a task.
 class Progress {
    private:
     Logger* logger = nullptr;
@@ -56,21 +56,19 @@ class Progress {
    public:
     friend class Logger;
 
-    /// Initialize the progress meter instance.
+    /// @brief Initialize the progress meter instance.
     ///
-    /// Args:
-    ///   - logger (Logger): Logger instance to log progress.
-    ///   - pc (ProgressConfig): Configuration for progress bar.
+    /// @param logger (Logger): Logger instance to log progress.
+    /// @param pc (ProgressConfig): Configuration for progress bar.
     Progress(Logger& logger, ProgressConfig pc = ProgressConfig())
         : logger(&logger) {
         this->unit = pc.unit;
         this->precision = pc.precision;
     }
 
-    /// Initialize the progress meter instance.
+    /// @brief Initialize the progress meter instance.
     ///
-    /// Args:
-    ///   - pc (ProgressConfig): Configuration for progress bar.
+    /// @param pc (ProgressConfig): Configuration for progress bar.
     Progress(ProgressConfig pc = ProgressConfig()) {
         this->unit = pc.unit;
         this->precision = pc.precision;
@@ -82,10 +80,9 @@ class Progress {
     Progress& operator=(Progress&&) = default;
     ~Progress() = default;
 
-    /// Get the current progress.
+    /// @brief Get the current progress.
     ///
-    /// Returns:
-    ///   - uint64_t: Current progress.
+    /// @returns uint64_t: Current progress.
     uint64_t get_current() {
         if (!this->is_active) {
             throw std::logic_error("Progress is not active");
@@ -93,11 +90,10 @@ class Progress {
         return this->current.value();
     }
 
-    /// Initialize the progress meter.
+    /// @brief Initialize the progress meter.
     ///
-    /// Args:
-    ///   - initial (uint64_t): Initial progress value.
-    ///   - total (uint64_t): Total progress value.
+    /// @param initial (uint64_t): Initial progress value.
+    /// @param total (uint64_t): Total progress value.
     Progress& operator()(uint64_t initial, uint64_t total) {
         if (this->is_active || this->is_running) {
             this->stop();
@@ -116,10 +112,9 @@ class Progress {
         return *this;
     }
 
-    /// Initialize the progress meter.
+    /// @brief Initialize the progress meter.
     ///
-    /// Args:
-    ///   - total (uint64_t): Total progress value.
+    /// @param total (uint64_t): Total progress value.
     Progress& operator()(uint64_t total) {
         if (this->is_active || this->is_running) {
             this->stop();
@@ -138,19 +133,18 @@ class Progress {
         return *this;
     }
 
-    /// Start the progress meter.
+    /// @brief Start the progress meter.
     void run();
 
-    /// Manually update the progress meter.
+    /// @brief Manually update the progress meter.
     ///
-    /// Args:
-    ///   - inc (uint64_t): Number of items processed.
-    void update(uint64_t);
+    /// @param inc (uint64_t): Number of items processed.
+    void update(uint64_t inc);
 
-    /// Stop the progress meter.
+    /// @brief Stop the progress meter.
     void stop();
 
-    /// Iterator over progress
+    /// @brief Iterator over progress
     class iterator {
        private:
         std::reference_wrapper<Progress> progress;
@@ -201,13 +195,13 @@ class Progress {
     }
 };
 
-/// Configuration for the logger.
+/// @brief Configuration for the logger.
 struct LoggerConfig {
     bool quiet = false;
     std::string scope = "";
 };
 
-/// Logger class for logging messages and progress updates.
+/// @brief Logger class for logging messages and progress updates.
 class Logger {
    private:
     bool quiet;
@@ -215,14 +209,13 @@ class Logger {
     std::string prefix;
 
    public:
-    /// Reusable progress meter that is logged by the logger..
+    /// @brief Reusable progress meter that is logged by the logger.
     Progress progress;
 
-    /// Constructor for the logger.
+    /// @brief Constructor for the logger.
     ///
-    /// Args:
-    ///   - lc (LoggerConfig): Configuration for the logger.
-    ///   - pc (ProgressConfig): Configuration for the progress meter.
+    /// @param lc (LoggerConfig): Configuration for the logger.
+    /// @param pc (ProgressConfig): Configuration for the progress meter.
     Logger(LoggerConfig lc, ProgressConfig pc = ProgressConfig())
         : quiet(lc.quiet), scope(lc.scope), progress(*this, pc) {
         if (lc.scope.size() == 0) {
@@ -232,10 +225,9 @@ class Logger {
         }
     }
 
-    /// Constructor for the logger.
+    /// @brief Constructor for the logger.
     ///
-    /// Args:
-    ///   - pc (ProgressConfig): Configuration for the progress meter.
+    /// @param pc (ProgressConfig): Configuration for the progress meter.
     Logger(ProgressConfig pc = ProgressConfig()) : progress(*this, pc) {
         LoggerConfig lc = LoggerConfig();
         this->quiet = lc.quiet;
@@ -253,43 +245,39 @@ class Logger {
     Logger& operator=(Logger&&) = default;
     ~Logger() = default;
 
-    /// Logs an informational message.
+    /// @brief Logs an informational message.
     ///
-    /// Args:
-    ///   - msg (std::string): The message to log.
+    /// @param msg (std::string): The message to log.
     void info(std::string msg) {
         if (this->quiet) return;
         std::cerr << "[" << this->prefix << "INFO]: " << msg << "\n";
     }
 
-    /// Logs a debug message.
+    /// @brief Logs a debug message.
     ///
-    /// Args:
-    ///   - msg (std::string): The message to log.
+    /// @param msg (std::string): The message to log.
     void debug(std::string msg) {
         if (this->quiet) return;
         std::cerr << "[" << this->prefix << "DEBUG]: " << msg << "\n";
     }
 
-    /// Logs a warning message.
+    /// @brief Logs a warning message.
     ///
-    /// Args:
-    ///   - msg (std::string): The message to log.
+    /// @param msg (std::string): The message to log.
     void warn(std::string msg) {
         if (this->quiet) return;
         std::cerr << "[" << this->prefix << "WARN]: " << msg << "\n";
     }
 
-    /// Logs an error message.
+    /// @brief Logs an error message.
     ///
-    /// Args:
-    ///   - msg (std::string): The message to log.
+    /// @param msg (std::string): The message to log.
     void error(std::string msg) {
         if (this->quiet) return;
         std::cerr << "[" << this->prefix << "ERROR]: " << msg << "\n";
     }
 
-    /// Logs a progress message.
+    /// @brief Logs a progress message.
     ///
     /// Note: The method is called automatically when the progress is updated.
     std::optional<size_t> log_progress() {
