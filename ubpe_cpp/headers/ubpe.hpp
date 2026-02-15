@@ -129,7 +129,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         auto max_token = this->alphabet_size - 1;
 
         logger.info("Starting token building");
-        logger.progress(this->n_tokens - 1, max_token - 1);
+        logger.progress(this->n_tokens, max_token + 1);
         logger.progress.run();
         // recursively fit tokenizer with `corpus`
         while (max_token < this->n_tokens) {
