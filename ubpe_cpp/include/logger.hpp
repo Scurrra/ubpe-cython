@@ -289,12 +289,16 @@ class Logger {
                                this->progress.initial_time.value())
                                .count()) /
                        1e9f;
-        auto left = this->progress.rate.value() > 0.0
-                        ? (this->progress.total.value() -
-                           this->progress.current.value()) /
-                              this->progress.rate.value()
-                        : 0.0;
-        auto estimated = left < 0.0 ? elapsed : elapsed + left;
+        auto left =
+            this->progress.total.value() > this->progress.current.value()
+                ? this->progress.rate.value() > 0.0
+                      ? (this->progress.total.value() -
+                         this->progress.current.value()) /
+                            this->progress.rate.value()
+                      : 0.0
+                : 0.0;
+        auto estimated = elapsed + left;
+
         std::ostringstream times;
         times << std::fixed << std::setprecision(0)
               << std::floor(elapsed / 60.0) << ":" << std::right
@@ -326,7 +330,6 @@ class Logger {
         } else {
             std::cerr << msg;
         }
-        // std::cout << this->progress.current.value() << "/" << this->progress.total.value() << "\n";
         if (this->progress.current.value() >= this->progress.total.value()) {
             std::cerr << "\n";
         }
@@ -372,11 +375,14 @@ void Progress::update(uint64_t inc) {
     if (this->logger) {
         this->old_length = this->logger->log_progress();
     } else {
-        auto left = this->rate.value() > 0.0
-                        ? (this->total.value() - this->current.value()) /
-                              this->rate.value()
+        auto left = this->total.value() > this->current.value()
+                        ? this->rate.value() > 0.0
+                              ? (this->total.value() - this->current.value()) /
+                                    this->rate.value()
+                              : 0.0
                         : 0.0;
-        auto estimated = left < 0.0 ? elapsed : elapsed + left;
+        auto estimated = elapsed + left;
+
         std::ostringstream times;
         times << std::fixed << std::setprecision(0)
               << std::floor(elapsed / 60.0) << ":" << std::right
@@ -427,12 +433,16 @@ Progress::iterator& Progress::iterator::operator++() {
         this->progress.get().old_length =
             this->progress.get().logger->log_progress();
     } else {
-        auto left = this->progress.get().rate.value() > 0.0
-                        ? (this->progress.get().total.value() -
-                           this->progress.get().current.value()) /
-                              this->progress.get().rate.value()
+        auto left = this->progress.get().total.value() >
+                            this->progress.get().current.value()
+                        ? this->progress.get().rate.value() > 0.0
+                              ? (this->progress.get().total.value() -
+                                 this->progress.get().current.value()) /
+                                    this->progress.get().rate.value()
+                              : 0.0
                         : 0.0;
-        auto estimated = left < 0.0 ? elapsed : elapsed + left;
+        auto estimated = elapsed + left;
+
         std::ostringstream times;
         times << std::fixed << std::setprecision(0)
               << std::floor(elapsed / 60.0) << ":" << std::right
