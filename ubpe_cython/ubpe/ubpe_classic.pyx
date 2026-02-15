@@ -39,14 +39,14 @@ cdef class UbpeClassicInt:
         assert isinstance(
             alphabet, dict
         ), "If `alphabet` is provided, it must be a dict"
-        
+
         if alphabet_size is None:
             alphabet_size = len(alphabet)
-            
+
         _n_tokens = n_tokens
         _alphabet_size = alphabet_size
         for key, value in alphabet.items():
-            _alphabet.insert((key, value))    
+            _alphabet.insert((key, value))
         self.inner = make_unique[UbpeClassic[vector[int], int]](_n_tokens, _alphabet_size, _alphabet)
 
     def dumps(self) -> str:
@@ -90,18 +90,18 @@ cdef class UbpeClassicInt:
             tokens_forward_mapping.insert((seq, int(token)))
         for token, weight in model["weights"].items():
             tokens_weights.insert((int(token), weight))
-        
+
         cdef UbpeClassicInt inst = cls(alphabet_size=0)
         inst.inner = make_unique[UbpeClassic[vector[int], int]](
             n_tokens, alphabet_size,
-            alphabet, inverse_alphabet, 
+            alphabet, inverse_alphabet,
             tokens_forward_mapping, tokens_backward_mapping,
             tokens_weights
         )
         return inst
 
-    def fit(self, vector[vector[int]] corpus, uint32_t n_candidates = 50, bint rearrange_tokens = True):
-        deref(self.inner).fit(corpus, n_candidates, rearrange_tokens)
+    def fit(self, vector[vector[int]] corpus, uint32_t n_candidates = 50, bint rearrange_tokens = True, bint quiet = False):
+        deref(self.inner).fit(corpus, n_candidates, rearrange_tokens, quiet)
 
     def encode(self, vector[int] doc, uint8_t top_n = 1):
         return deref(self.inner).encode(doc, top_n)
@@ -132,16 +132,16 @@ cdef class UbpeClassicChar:
             value: key
             for key, value in alphabet.items()
         }
-        
+
         cdef uint32_t _alphabet_size
         cdef uint32_t _n_tokens
-        
+
         if alphabet_size is not None:
             _n_tokens = n_tokens
             _alphabet_size = alphabet_size
             self.inner = make_unique[UbpeClassic[vector[int], int]](_n_tokens, _alphabet_size)
             return
-        
+
         if alphabet_size is None:
             _n_tokens = n_tokens
             _alphabet_size = len(alphabet)
@@ -188,19 +188,19 @@ cdef class UbpeClassicChar:
             tokens_forward_mapping.insert((seq, int(token)))
         for token, weight in model["weights"].items():
             tokens_weights.insert((int(token), weight))
-        
+
         cdef UbpeClassicChar inst = cls(alphabet=model["alphabet"])
         inst.inner = make_unique[UbpeClassic[vector[int], int]](
             n_tokens, alphabet_size,
-            alphabet, inverse_alphabet, 
+            alphabet, inverse_alphabet,
             tokens_forward_mapping, tokens_backward_mapping,
             tokens_weights
         )
         return inst
 
-    def fit(self, list[str] corpus, uint32_t n_candidates = 50, bint rearrange_tokens = True):
+    def fit(self, list[str] corpus, uint32_t n_candidates = 50, bint rearrange_tokens = True, bint quiet = False):
         cdef vector[vector[int]] _corpus
-        try: 
+        try:
             _corpus = [
                 [
                     self.alphabet[letter]
@@ -210,14 +210,14 @@ cdef class UbpeClassicChar:
             ]
         except:
             raise Exception("Unknown letter")
-        deref(self.inner).fit(_corpus, n_candidates, rearrange_tokens)
+        deref(self.inner).fit(_corpus, n_candidates, rearrange_tokens, quiet)
 
     def encode(self, str doc, uint8_t top_n = 1):
         cdef vector[int] _doc
         try:
             _doc = [self.alphabet[letter] for letter in doc]
         except:
-            raise Exception("Unknown letter")    
+            raise Exception("Unknown letter")
         return deref(self.inner).encode(_doc, top_n)
 
     def decode(self, vector[uint32_t] tokens):

@@ -6,6 +6,7 @@
 #include <numeric>
 
 #include "counter.hpp"
+#include "logger.hpp"
 #include "pair_counter.hpp"
 #include "ubpe_base.hpp"
 
@@ -48,16 +49,25 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
     ~UbpeClassic() = default;
 
     void fit(const std::vector<DocType>& corpus, uint32_t n_candidates = 50,
-             bool rearrange_tokens = true) override {
+             bool rearrange_tokens = true, bool quiet = false) override {
         assert((n_candidates > 0) && "`n_candidates` should not be 0");
-        auto max_token = this->alphabet_size - 1;
+
+        auto logger = ubpe::Logger(
+            {.scope = "UbpeClassic::fit", .quiet = quiet}, {.unit = "token"});
+        logger.info("Starting fitting process");
 
         std::vector<std::vector<uint32_t>> _corpus;
         _corpus.reserve(corpus.size());
         std::transform(
             corpus.cbegin(), corpus.cend(), std::back_inserter(_corpus),
             [this](const auto& doc) { return this->_doc_to_vec(doc); });
+        logger.info("Loaded the corpus");
 
+        auto max_token = this->alphabet_size - 1;
+
+        logger.info("Starting token building");
+        logger.progress(this->n_tokens - 1, max_token - 1);
+        logger.progress.run();
         // recursively fit tokenizer with `corpus`
         while (max_token < this->n_tokens) {
             // find number of occurences of each pair of adjacent tokens
@@ -118,11 +128,19 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                           [this, &sub](auto& doc) {
                               this->_replace_token_pairs(doc, sub);
                           });
+            logger.progress.update(token_pairs.size());
         }
+        logger.progress.stop();
+        logger.info("Built " +
+                    std::to_string(this->tokens_backward_mapper.size()) +
+                    " artificial tokens");
 
         // rearrange fitted tokens
         if (rearrange_tokens) {
             this->_rearrange_tokens_by_weight();
+            logger.info("Rearranged artificial tokens: " +
+                        std::to_string(this->tokens_backward_mapper.size()) +
+                        " left");
         }
 
         std::transform(this->tokens_backward_mapper.cbegin(),
@@ -139,6 +157,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                        this->tokens_backward_mapper.cend(),
                        std::back_inserter(this->pairs),
                        [](const auto& element) { return element.second; });
+        logger.info("Cached pairs for faster encoding");
     }
 
     std::vector<std::pair<std::vector<uint32_t>, double>> encode(

@@ -290,8 +290,9 @@ class UbpeBase {
     /// be substituted with new ones; ignored in `UbpeClassic`.
     /// @param rearrange_tokens If tokens should be rearranged to make tokens
     /// with smaller numbers be more valueable.
+    /// @param quiet Whether to suppress logging.
     virtual void fit(const std::vector<DocType>&, uint32_t = 50,
-                     bool = true) = 0;
+                     bool = true, bool = false) = 0;
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param document Sequence of basic tokens to encode.

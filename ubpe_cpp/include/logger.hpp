@@ -92,9 +92,9 @@ class Progress {
 
     /// @brief Initialize the progress meter.
     ///
-    /// @param initial (uint64_t): Initial progress value.
     /// @param total (uint64_t): Total progress value.
-    Progress& operator()(uint64_t initial, uint64_t total) {
+    /// @param initial (uint64_t): Initial progress value.
+    Progress& operator()(uint64_t total, uint64_t initial) {
         if (this->is_active || this->is_running) {
             this->stop();
         }
@@ -326,6 +326,7 @@ class Logger {
         } else {
             std::cerr << msg;
         }
+        // std::cout << this->progress.current.value() << "/" << this->progress.total.value() << "\n";
         if (this->progress.current.value() >= this->progress.total.value()) {
             std::cerr << "\n";
         }
