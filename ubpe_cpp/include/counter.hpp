@@ -107,7 +107,7 @@ class Counter {
             std::vector<std::pair<T, size_t>> mc(this->counter.begin(),
                                                  this->counter.end());
 
-            std::sort(mc.begin(), mc.end(), cmp);
+            std::stable_sort(mc.begin(), mc.end(), cmp);
 
             return mc;
         }
@@ -122,4 +122,4 @@ class Counter {
 
 }  // namespace ubpe
 
-#endif
+#endif  // COUNTER_HPP

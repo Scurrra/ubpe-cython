@@ -71,7 +71,7 @@ class PairCounter {
             std::vector<std::pair<std::pair<T, T>, size_t>> mc(
                 this->pairs_counter.cbegin(), this->pairs_counter.cend());
 
-            std::sort(mc.begin(), mc.end(), cmp);
+            std::stable_sort(mc.begin(), mc.end(), cmp);
 
             return mc;
         }
