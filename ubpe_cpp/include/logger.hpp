@@ -480,4 +480,4 @@ Progress::iterator Progress::iterator::operator++(int) {
 }
 }  // namespace ubpe
 
-#endif LOGGER_HPP
+#endif  // LOGGER_HPP
