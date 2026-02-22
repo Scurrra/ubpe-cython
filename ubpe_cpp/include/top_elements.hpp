@@ -2,56 +2,74 @@
 #define TOP_ELEMENTS
 
 #include <functional>
-#include <queue>
 #include <vector>
+
+#include "heapq.hpp"
 
 namespace ubpe {
 
-/// @brief `std::priority_queue` wrapper for more efficient finding of top n
-/// elements in a stream.
-template <typename T, typename Compare = std::greater<T>>
+/// @brief `ubpe::heapq` wrapper for more efficient finding of top n elements in
+/// a stream.
+///
+/// Note: it has a min-heap under the hood.
+template <typename T, typename Compare = std::less<T>>
 class TopElements {
    private:
     size_t n;
-    std::priority_queue<T, std::vector<T>, Compare> pq;
+    heapq<T> heap;
 
    public:
-    TopElements(size_t n, Compare comp = Compare()) : n(n), pq(comp) {}
+    /// @brief Initialize a TopElements object with a maximum size and a
+    /// comparison function.
+    TopElements(size_t n, Compare comp = Compare())
+        : n(n), heap({.compare = comp}) {}
+
     TopElements(const TopElements&) = default;
     TopElements(TopElements&&) = default;
     TopElements& operator=(const TopElements&) = default;
     TopElements& operator=(TopElements&&) = default;
     ~TopElements() = default;
 
+    /// @brief Push an element into the heap.
+    /// @param element An element to add.
     void push(const T& element) {
-        this->pq.push(element);
-        if (this->pq.size() > this->n) {
-            this->pq.pop();
+        if (this->heap.size() < n) {
+            this->heap.push(element);
+        } else if (element > this->heap.top()) {
+            this->heap.pushpop(element);
         }
     }
 
+    /// @brief Push an element into the heap.
+    /// @param element An element to add.
     void push(T&& element) {
-        this->pq.push(element);
-        if (this->pq.size() > this->n) {
-            this->pq.pop();
+        auto _element = std::move(element);
+        if (this->heap.size() < n) {
+            this->heap.push(_element);
+        } else if (element > this->heap.top()) {
+            this->heap.pushpop(_element);
         }
     }
 
-    void pop() { this->pq.pop(); }
+    /// @brief Pop the top element from the heap.
+    void pop() { auto _ = this->heap.pop(); }
 
-    bool empty() const { return this->pq.empty(); }
+    /// @brief Check if the heap is empty.
+    bool empty() const { return this->heap.empty(); }
 
-    size_t size() const { return this->pq.size(); }
+    /// @brief Get the size of the heap.
+    size_t size() const { return this->heap.size(); }
 
-    const T& top() const { return this->pq.top(); }
+    /// @brief Get the top element from the heap.
+    const T& top() const { return this->heap.top(); }
 
     /// @brief Get sorted top n elements.
     std::vector<T> sorted() const {
-        std::vector<T> data(this->pq.size());
+        std::vector<T> data(this->heap.size());
 
-        auto pq = this->pq;
-        for (int i = data.size() - 1; i >= 0 && !pq.empty(); i--, pq.pop()) {
-            data[i] = pq.top();
+        auto heap = this->heap;
+        for (int i = data.size() - 1; i >= 0; i--) {
+            data[i] = heap.pop();
         }
 
         return data;
