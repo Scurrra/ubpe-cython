@@ -254,7 +254,7 @@ class UbpeBase {
     UbpeBase(UbpeBase&&) = default;
     UbpeBase& operator=(const UbpeBase&) = default;
     UbpeBase& operator=(UbpeBase&&) = default;
-    ~UbpeBase() = default;
+    virtual ~UbpeBase() = default;
 
     /// @brief Get forward mapper for dumping.
     /// @return `this.tokens_forward_mapper`
