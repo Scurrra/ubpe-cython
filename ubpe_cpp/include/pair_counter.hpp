@@ -71,48 +71,98 @@ class PairCounter {
         size_t n) const {
         if (n == 0) return {};
 
-        std::vector<std::pair<std::pair<T, T>, std::pair<size_t, int>>> data;
-        data.reserve(this->counter.size());
-        std::transform(
-            this->counter.cbegin(), this->counter.cend(),
-            std::back_inserter(data),
-            [](const std::pair<std::pair<T, T>, std::pair<size_t, size_t>>&
-                   value)
-                -> std::pair<std::pair<T, T>, std::pair<size_t, int>> {
-                return {value.first,
-                        {value.second.second, -value.second.first}};
-            });
+        // here we have two options:
+        // 1. transform std::unordered_map, which `this->counter` is, and use a
+        // key or a comparison function for comparison
+        // 2. pass `this->counter` as is without creating a copy but with a more
+        // complex comparison function
+        //
+        // personally, I like the second option more as I spent a lot of time
+        // implementing it
 
-        // `ubpe::nlargest` doesn't work with std::unordered_map iterators yet,
-        // so we need to convert it to a vector first both of the following
-        // work, but the second one *should be* more efficient
+        // std::vector<std::pair<std::pair<T, T>, std::pair<size_t, int>>> data;
+        // data.reserve(this->counter.size());
+        // std::transform(
+        //     this->counter.cbegin(), this->counter.cend(),
+        //     std::back_inserter(data),
+        //     [](const std::pair<std::pair<T, T>, std::pair<size_t, size_t>>&
+        //            value)
+        //         -> std::pair<std::pair<T, T>, std::pair<size_t, int>> {
+        //         return {value.first,
+        //                 {value.second.second, -value.second.first}};
+        //     });
 
-        // auto mc =
-        //     nlargest<std::pair<std::pair<T, T>, std::pair<size_t, int>>,
-        //              std::pair<std::pair<size_t, int>,
-        //                        std::pair<T, T>>>(
-        //                        int>>(
-        //         data, n,
-        //         {.key = [](const std::pair<std::pair<T, T>,
-        //                                    std::pair<size_t, int>>& value)
-        //              -> std::pair<std::pair<size_t, int>, std::pair<T, T>> {
-        //             return {value.second, value.first};
-        //         }});
+        // // `ubpe::nlargest` doesn't work with std::unordered_map iterators
+        // yet,
+        // // so we need to convert it to a vector first both of the following
+        // // work, but the second one *should be* more efficient
 
-        auto mc = nlargest<std::pair<std::pair<T, T>, std::pair<size_t, int>>>(
-            data, n,
+        // // auto mc =
+        // //     nlargest<std::pair<std::pair<T, T>, std::pair<size_t, int>>,
+        // //              std::pair<std::pair<size_t, int>,
+        // //                        std::pair<T, T>>>(
+        // //                        int>>(
+        // //         data, n,
+        // //         {.key = [](const std::pair<std::pair<T, T>,
+        // //                                    std::pair<size_t, int>>& value)
+        // //              -> std::pair<std::pair<size_t, int>, std::pair<T, T>>
+        // {
+        // //             return {value.second, value.first};
+        // //         }});
+
+        // auto mc = nlargest<std::pair<std::pair<T, T>, std::pair<size_t,
+        // int>>>(
+        //     data, n,
+        //     {.compare =
+        //          [](const std::pair<std::pair<T, T>, std::pair<size_t, int>>&
+        //          a,
+        //             const std::pair<std::pair<T, T>, std::pair<size_t, int>>&
+        //                 b) {
+        //              if (a.second == b.second) return a.first > b.first;
+        //              return a.second > b.second;
+        //          }});
+
+        // std::vector<std::pair<std::pair<T, T>, size_t>> result(mc.size());
+        // for (auto i = 0; i < result.size(); i++) {
+        //     result[i] = {mc[i].first, mc[i].second.first};
+        // }
+        // return result;
+
+        auto mc = nlargest<
+            std::pair<std::pair<T, T>, std::pair<size_t, size_t>>,
+            std::unordered_map<std::pair<T, T>, std::pair<size_t, size_t>,
+                               PairHash<T>>>(
+            this->counter.cbegin(), this->counter.cend(), n,
             {.compare =
-                 [](const std::pair<std::pair<T, T>, std::pair<size_t, int>>& a,
-                    const std::pair<std::pair<T, T>, std::pair<size_t, int>>&
+                 [](const std::pair<std::pair<T, T>, std::pair<size_t, size_t>>&
+                        a,
+                    const std::pair<std::pair<T, T>, std::pair<size_t, size_t>>&
                         b) {
+                     // if both docs and pair counts are equal, return those
+                     // where first token in the pair (or the second if the
+                     // firsts are equal);
+                     // actually, it's a lazyness and reluctance to write more
+                     // complex code, but practically this means that in the
+                     // case a caught the bug of merging of different pairs of
+                     // tokens in a triple `a-b-c` in different backends
+                     // (`(a-b)-c` in one and `a-(b-c)` in the other), it will
+                     // choose to extend to the right first;
                      if (a.second == b.second) return a.first > b.first;
-                     return a.second > b.second;
+                     // if pair counts are equal, choose the pair with lower
+                     // docs count to get higher IDF
+                     if (a.second.second == b.second.second)
+                         return a.second.first < b.second.first;
+                     // or basically choose the one with higher pair count
+                     return a.second.second > b.second.second;
                  }});
 
-        std::vector<std::pair<std::pair<T, T>, size_t>> result(mc.size());
-        for (auto i = 0; i < result.size(); i++) {
-            result[i] = {mc[i].first, mc[i].second.first};
-        }
+        std::vector<std::pair<std::pair<T, T>, size_t>> result;
+        result.reserve(mc.size());
+        std::transform(
+            mc.cbegin(), mc.cend(), std::back_inserter(result),
+            [](const auto& element) -> std::pair<std::pair<T, T>, size_t> {
+                return {element.first, element.second.second};
+            });
         return result;
     }
 
