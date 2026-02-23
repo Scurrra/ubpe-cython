@@ -1,12 +1,11 @@
 #ifndef COUNTER_HPP
 #define COUNTER_HPP
 
-#include <algorithm>
 #include <cstddef>
 #include <unordered_map>
 #include <vector>
 
-#include "top_elements.hpp"
+#include "heapq.hpp"
 
 namespace ubpe {
 
@@ -97,26 +96,12 @@ class Counter {
     std::vector<std::pair<T, size_t>> most_common(size_t n) const {
         if (n == 0) return {};
 
-        // comparator (like std::less)
-        auto cmp = [](const auto& a, const auto& b) {
-            return a.second > b.second;
-        };
-
-        // if `n` is greater than naumber of pairs itself then just sort
-        if (n >= this->counter.size()) {
-            std::vector<std::pair<T, size_t>> mc(this->counter.begin(),
-                                                 this->counter.end());
-
-            std::stable_sort(mc.begin(), mc.end(), cmp);
-
-            return mc;
-        }
-
-        TopElements<std::pair<T, size_t>, decltype(cmp)> mc(n);
-        for (auto element : this->counter) {
-            mc.push(element);
-        }
-        return mc.sorted();
+        return nlargest<std::pair<T, size_t>, size_t,
+                        std::unordered_map<T, size_t>>(
+            this->counter.cbegin(), this->counter.cend(), n,
+            {.key = [](const std::pair<T, size_t>& element) {
+                return element.second;
+            }});
     }
 };
 
