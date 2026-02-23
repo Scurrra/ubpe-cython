@@ -2,11 +2,11 @@
 #define UBPE_BASE_CPP
 
 #include <algorithm>
-#include <cassert>
 #include <cstdint>
 #include <iterator>
 #include <map>
 #include <set>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -37,9 +37,9 @@ class UbpeBase {
     /// and trims dictionary of the tokenizer to be not greater than
     /// `this.n_tokens`.
     void _rearrange_tokens_by_weight() {
-        assert((this->tokens_backward_mapper.size() != 0 &&
-                this->tokens_weights.size() != 0) &&
-               "Can not rearrange non-fitted tokenizer");
+        if (this->tokens_backward_mapper.size() == 0 ||
+            this->tokens_weights.size() == 0)
+            throw std::logic_error("Can not rearrange non-fitted tokenizer");
 
         // buffer to sort by weight and eliminate some of them
         std::vector<std::pair<uint32_t, std::vector<uint32_t>>> buf(
@@ -220,8 +220,10 @@ class UbpeBase {
     UbpeBase(uint32_t n_tokens, uint32_t alphabet_size,
              std::map<TokenType, uint32_t> alphabet)
         : n_tokens(n_tokens), alphabet_size(alphabet_size) {
-        assert((alphabet_size == alphabet.size()) &&
-               "Provided `alphabet` should be of size `alphabet_size`.");
+        if (alphabet_size != alphabet.size())
+            throw std::invalid_argument(
+                "Provided `alphabet` should be of size `alphabet_size`.");
+
         this->alphabet = alphabet;
         std::transform(
             alphabet.cbegin(), alphabet.cend(),
@@ -244,10 +246,13 @@ class UbpeBase {
           tokens_forward_mapper(tokens_forward_mapper),
           tokens_backward_mapper(tokens_backward_mapper),
           tokens_weights(tokens_weights) {
-        assert((alphabet_size == alphabet.size()) &&
-               "Provided `alphabet` should be of size `alphabet_size`.");
-        assert((alphabet.size() == inverse_alphabet.size()) &&
-               "`alphabet` and `inverse_alphabet` should be of the same size.");
+        if (alphabet_size != alphabet.size())
+            throw std::invalid_argument(
+                "Provided `alphabet` should be of size `alphabet_size`.");
+        if (alphabet.size() != inverse_alphabet.size())
+            throw std::invalid_argument(
+                "`alphabet` and `inverse_alphabet` should be of the same "
+                "size.");
     }
 
     UbpeBase(const UbpeBase&) = default;
@@ -291,8 +296,8 @@ class UbpeBase {
     /// @param rearrange_tokens If tokens should be rearranged to make tokens
     /// with smaller numbers be more valueable.
     /// @param quiet Whether to suppress logging.
-    virtual void fit(const std::vector<DocType>&, uint32_t = 50,
-                     bool = true, bool = false) = 0;
+    virtual void fit(const std::vector<DocType>&, uint32_t = 50, bool = true,
+                     bool = false) = 0;
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param document Sequence of basic tokens to encode.

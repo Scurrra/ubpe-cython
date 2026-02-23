@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <numeric>
+#include <stdexcept>
 
 #include "counter.hpp"
 #include "logger.hpp"
@@ -50,7 +51,8 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
     void fit(const std::vector<DocType>& corpus, uint32_t n_candidates = 50,
              bool rearrange_tokens = true, bool quiet = false) override {
-        assert((n_candidates > 0) && "`n_candidates` should not be 0");
+        if (n_candidates == 0)
+            throw std::logic_error("n_candidates should not be 0");
 
         auto logger = ubpe::Logger(
             {.scope = "UbpeClassic::fit", .quiet = quiet}, {.unit = "token"});
@@ -162,11 +164,10 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
     std::vector<std::pair<std::vector<uint32_t>, double>> encode(
         const DocType& doc, uint8_t = 1) const override {
-        assert((this->pairs.size() != 0) && "Tokenizer was not fitted");
-        assert((this->tokens_forward_mapper.size() != 0 &&
-                this->tokens_backward_mapper.size() != 0 &&
-                this->tokens_weights.size() != 0) &&
-               "Can not rearrange non-fitted tokenizer");
+        if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer was not fitted");
 
         // handle empty sequence
         if (doc.size() == 0) return {};
@@ -230,7 +231,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
         // compute weight of encoded `doc`
         auto counter = Counter<uint32_t>(_doc);
         double weight = std::accumulate(
-            counter.cbegin(), counter.cend(), 0.0f,
+            counter.cbegin(), counter.cend(), 0,
             [this](auto total, auto& element) {
                 return total + (this->tokens_weights.contains(element.first)
                                     ? (1 + std::log(element.second)) *
@@ -242,10 +243,10 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
     }
 
     DocType decode(const std::vector<uint32_t>& tokens) const override {
-        assert((this->tokens_forward_mapper.size() != 0 &&
-                this->tokens_backward_mapper.size() != 0 &&
-                this->tokens_weights.size() != 0) &&
-               "Can not rearrange non-fitted tokenizer");
+        if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer was not fitted");
 
         // handle empty sequence
         if (tokens.size() == 0) return {};

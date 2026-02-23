@@ -2,9 +2,9 @@
 #define SUB_SEQUENCES_SEARCH_TREE_HPP
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -138,7 +138,9 @@ class SSSTreeNode {
     std::optional<V> operator()(
         const K& key, std::vector<std::pair<K, std::optional<V>>>& stack,
         size_t start = 0) const {
-        assert((start < key.size()) || "`start` is out of range");
+        if (start >= key.size())
+            throw std::out_of_range("`start` is out of range");
+
         // check if the untraced part of `key` is shorter than the key in the
         // node
         if (start + this->key.size() > key.size()) {
@@ -228,7 +230,8 @@ class SSSTree {
     /// or lengths of prefixes of `key` present in the tree.
     variant<std::vector<std::pair<K, V>>, std::vector<std::pair<size_t, V>>>
     operator()(const K& key, size_t start = 0, bool fast = false) const {
-        assert((start < key.size()) || "`start` is out of range");
+        if (start >= key.size())
+            throw std::out_of_range("`start` is out of range");
 
         // search which child may contain `key`
         size_t i = 0;

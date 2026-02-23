@@ -85,9 +85,7 @@ class Counter {
     /// @returns Count of occuriences of `element`.
     const size_t& at(T element) const noexcept {
         // if `pair` was not in corpus
-        assert(this->counter.contains(element) ||
-               "Counter does not contain this element");
-
+        if (!this->counter.contains(element)) return 0;
         return this->counter[element];
     }
 

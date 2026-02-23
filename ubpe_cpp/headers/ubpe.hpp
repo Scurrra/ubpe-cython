@@ -7,6 +7,7 @@
 #include <numeric>
 #include <optional>
 #include <stack>
+#include <stdexcept>
 
 #include "counter.hpp"
 #include "logger.hpp"
@@ -22,11 +23,11 @@ namespace ubpe {
 struct EncodingCandidate {
     double weight;
     std::vector<uint32_t> sequence;
-    ubpe::Counter<uint32_t> counter;
+    Counter<uint32_t> counter;
 
     EncodingCandidate() = default;
     EncodingCandidate(double weight, std::vector<uint32_t> sequence,
-                      ubpe::Counter<uint32_t> counter)
+                      Counter<uint32_t> counter)
         : weight(weight), sequence(sequence), counter(counter) {}
     EncodingCandidate(const EncodingCandidate&) = default;
     EncodingCandidate(EncodingCandidate&&) = default;
@@ -113,10 +114,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
     void fit(const std::vector<DocType>& corpus, uint32_t n_candidates = 50,
              bool rearrange_tokens = true, bool quiet = false) override {
-        assert((n_candidates > 0) && "`n_candidates` should not be 0");
+        if (n_candidates == 0)
+            throw std::logic_error("n_candidates should not be 0");
 
-        auto logger = ubpe::Logger({.scope = "Ubpe::fit", .quiet = quiet},
-                                   {.unit = "token"});
+        auto logger =
+            Logger({.scope = "Ubpe::fit", .quiet = quiet}, {.unit = "token"});
         logger.info("Starting fitting process");
 
         std::vector<std::vector<uint32_t>> _corpus;
@@ -247,11 +249,10 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
     std::vector<std::pair<std::vector<uint32_t>, double>> encode(
         const DocType& doc, uint8_t top_n = 1) const override {
-        assert((!this->lookup.empty()) && "Tokenizer was not fitted");
-        assert((this->tokens_forward_mapper.size() != 0 &&
-                this->tokens_backward_mapper.size() != 0 &&
-                this->tokens_weights.size() != 0) &&
-               "Can not rearrange non-fitted tokenizer");
+        if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer was not fitted");
 
         // handle empty sequence
         if (doc.size() == 0) return {};
@@ -388,7 +389,8 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                                             : 0.0);
                             });
                         // add a new candidate
-                        buf.push({buf_weight, buf_element, buf_counter});
+                        buf.push(EncodingCandidate(buf_weight, buf_element,
+                                                   buf_counter));
                     }
                 }
 
@@ -408,10 +410,10 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
     }
 
     DocType decode(const std::vector<uint32_t>& tokens) const override {
-        assert((this->tokens_forward_mapper.size() != 0 &&
-                this->tokens_backward_mapper.size() != 0 &&
-                this->tokens_weights.size() != 0) &&
-               "Can not rearrange non-fitted tokenizer");
+        if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer was not fitted");
 
         // handle empty sequence
         if (tokens.size() == 0) return {};
