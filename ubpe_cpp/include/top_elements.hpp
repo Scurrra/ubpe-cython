@@ -1,6 +1,7 @@
 #ifndef TOP_ELEMENTS
 #define TOP_ELEMENTS
 
+#include <algorithm>
 #include <functional>
 #include <vector>
 
@@ -36,7 +37,7 @@ class TopElements {
         if (this->heap.size() < n) {
             this->heap.push(element);
         } else if (element > this->heap.top()) {
-            this->heap.pushpop(element);
+            this->heap.replace(element);
         }
     }
 
@@ -47,7 +48,7 @@ class TopElements {
         if (this->heap.size() < n) {
             this->heap.push(_element);
         } else if (element > this->heap.top()) {
-            this->heap.pushpop(_element);
+            this->heap.replace(_element);
         }
     }
 
@@ -65,13 +66,8 @@ class TopElements {
 
     /// @brief Get sorted top n elements.
     std::vector<T> sorted() const {
-        std::vector<T> data(this->heap.size());
-
-        auto heap = this->heap;
-        for (int i = data.size() - 1; i >= 0; i--) {
-            data[i] = heap.pop();
-        }
-
+        std::vector<T> data = this->heap.container();
+        std::stable_sort(data.begin(), data.end(), std::greater<T>());
         return data;
     }
 };
