@@ -83,7 +83,7 @@ class Counter {
     /// @brief Get counts for `element`, if not present first inits it with 0.
     /// @param element Key that should be in counter.
     /// @returns Count of occuriences of `element`.
-    const size_t& at(T element) const noexcept {
+    size_t at(T element) const noexcept {
         // if `pair` was not in corpus
         if (!this->counter.contains(element)) return 0;
         return this->counter[element];
