@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <optional>
 #include <stdexcept>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -13,21 +12,16 @@
 
 namespace ubpe {
 
-template <typename T>
-concept TreeKeyT = std::ranges::range<T> ||
-                   std::is_same_v<std::remove_cvref_t<T>,
-                                  std::basic_string<typename T::value_type>>;
-
 /// @brief SubSequence Search Tree.
 ///
 /// Well, it's a version of an optimized trie but with an efficient search
 /// operator `()` which return not the full match for the `key`, but all
 /// non-null entries which keys are prefixes in the `key`.
-template <TreeKeyT K, typename V>
+template <DocumentT K, typename V>
 class SSSTree;
 
 /// @brief SubSequence Search Tree node.
-template <TreeKeyT K, typename V>
+template <DocumentT K, typename V>
 class SSSTreeNode {
     friend class SSSTree<K, V>;
 
@@ -167,7 +161,7 @@ class SSSTreeNode {
     }
 };
 
-template <TreeKeyT K, typename V>
+template <DocumentT K, typename V>
 class SSSTree {
    private:
     std::vector<SSSTreeNode<K, V>> children;
