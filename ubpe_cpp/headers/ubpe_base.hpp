@@ -11,13 +11,9 @@
 #include <utility>
 #include <vector>
 
-namespace ubpe {
+#include "utils.hpp"
 
-/// @brief Concept of type that can be a document or a key in a `ubpe::SSSTree`.
-template <typename T>
-concept DocumentT = std::ranges::range<T> ||
-                    std::is_same_v<std::remove_cvref_t<T>,
-                                   std::basic_string<typename T::value_type>>;
+namespace ubpe {
 
 template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class UbpeBase {
