@@ -133,5 +133,6 @@ cython_debug/
 .clang-format
 .clang-tidy
 .clangd
+compile_flags.txt
 
 example/
