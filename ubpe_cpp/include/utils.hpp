@@ -1,7 +1,9 @@
 #ifndef UBPE_UTILS
 #define UBPE_UTILS
 
-#include <functional>
+#include <concepts>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 #include <variant>
@@ -14,23 +16,42 @@ concept DocumentT = std::ranges::range<T> ||
                     std::is_same_v<std::remove_cvref_t<T>,
                                    std::basic_string<typename T::value_type>>;
 
-/// Hashable concept.
-template <typename T>
-concept Hashable = requires(T a) {
-    { std::hash<T>{}(a) } -> std::convertible_to<std::size_t>;
-};
+/// @brief SplitMix64 pseudo-random mixing function.
+///
+/// Algorithm and empirically-chosen constants:
+/// - 0xbf58476d1ce4e5b9, 0x94d049bb133111eb: Sebastiano Vigna (2015)
+/// - Reference implementation: http://xoroshiro.di.unimi.it/splitmix64.c
+/// - License: CC0 Public Domain (no warranty)
+///
+/// Note: The additive constant 0x9e3779b97f4a7c15ULL is the golden-ratio
+/// fraction ⌊2⁶⁴/φ⌋, a standard technique from Knuth (TAOCP Vol. 3, §6.4).
+[[nodiscard]] constexpr std::uint64_t splitmix64(std::uint64_t x) {
+    x += 0x9e3779b97f4a7c15ULL;
+    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+    return x ^ (x >> 31);
+}
 
-/// HalfSizeT concept to check if a type is half the size of a `size_t`.
-template <typename T>
-concept HalfSizeT = std::integral<T> && sizeof(T) * 2 <= sizeof(size_t);
-
-/// Hash function for pairs of HalfSizeT types.
-template <HalfSizeT T, std::size_t SHIFT = sizeof(T)>
+/// @brief Hash function for `std::pair<T, T>` using SplitMix64 pre-mixing
+/// and Boost-style hash combination.
+///
+/// Combination formula:
+/// - h1 ^ (h2 + C + (h1<<6) + (h1>>2)), where C = 0x9e3779b97f4a7c15ULL
+/// - Origin: Boost `hash_combine` idiom; constant C = ⌊2⁶⁴/φ⌋ (Knuth, TAOCP)
+///
+/// Pre-mixing:
+/// - Each component is first passed through splitmix64() (Vigna, CC0)
+///   to improve avalanche before combination.
+///
+/// @tparam T Integral type (constrained by std::integral)
+/// @return std::size_t hash value (truncated if size_t < 64 bits)
+template <std::integral T>
 struct PairHash {
-    std::size_t operator()(const std::pair<T, T>& p) const {
-        auto h1 = std::hash<T>{}(p.first);
-        auto h2 = std::hash<T>{}(p.second);
-        return (h1 << SHIFT) ^ h2;
+    [[nodiscard]] constexpr std::size_t operator()(
+        const std::pair<T, T>& p) const {
+        auto h1 = splitmix64(static_cast<std::uint64_t>(p.first));
+        auto h2 = splitmix64(static_cast<std::uint64_t>(p.second));
+        return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
     }
 };
 

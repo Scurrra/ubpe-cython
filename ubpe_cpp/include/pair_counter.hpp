@@ -2,6 +2,7 @@
 #define PAIR_COUNTER_HPP
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <iterator>
 #include <unordered_map>
@@ -14,12 +15,12 @@
 namespace ubpe {
 
 /// @brief Class for counting of occurences of adjacent pairs in the corpus.
-template <Hashable T>
+template <std::integral T>
 class PairCounter {
    private:
     // `.first` --- count of documents
     // `.second` --- count of pairs
-    std::unordered_map<std::pair<T, T>, std::pair<size_t, size_t>, PairHash<T>>
+    std::unordered_map<std::pair<T, T>, std::pair<std::size_t, std::size_t>, PairHash<T>>
         counter;
 
    public:
@@ -48,7 +49,7 @@ class PairCounter {
     /// @param doc Flat vector.
     void update(const std::vector<T>& doc) {
         // update with adjacent pairs
-        for (size_t i = 0; i < doc.size() - 1; i++) {
+        for (std::size_t i = 0; i < doc.size() - 1; i++) {
             this->counter[{doc[i], doc[i + 1]}].second++;
         }
 
@@ -67,8 +68,8 @@ class PairCounter {
 
     /// @brief Get `n` most common pairs.
     /// @param n How many pairs together with it's number of occurrences.
-    std::vector<std::pair<std::pair<T, T>, size_t>> most_common(
-        size_t n) const {
+    std::vector<std::pair<std::pair<T, T>, std::size_t>> most_common(
+        std::size_t n) const {
         if (n == 0) return {};
 
         // here we have two options:
@@ -80,14 +81,14 @@ class PairCounter {
         // personally, I like the second option more as I spent a lot of time
         // implementing it
 
-        // std::vector<std::pair<std::pair<T, T>, std::pair<size_t, int>>> data;
+        // std::vector<std::pair<std::pair<T, T>, std::pair<std::size_t, int>>> data;
         // data.reserve(this->counter.size());
         // std::transform(
         //     this->counter.cbegin(), this->counter.cend(),
         //     std::back_inserter(data),
-        //     [](const std::pair<std::pair<T, T>, std::pair<size_t, size_t>>&
+        //     [](const std::pair<std::pair<T, T>, std::pair<std::size_t, std::size_t>>&
         //            value)
-        //         -> std::pair<std::pair<T, T>, std::pair<size_t, int>> {
+        //         -> std::pair<std::pair<T, T>, std::pair<std::size_t, int>> {
         //         return {value.first,
         //                 {value.second.second, -value.second.first}};
         //     });
@@ -98,45 +99,45 @@ class PairCounter {
         // // work, but the second one *should be* more efficient
 
         // // auto mc =
-        // //     nlargest<std::pair<std::pair<T, T>, std::pair<size_t, int>>,
-        // //              std::pair<std::pair<size_t, int>,
+        // //     nlargest<std::pair<std::pair<T, T>, std::pair<std::size_t, int>>,
+        // //              std::pair<std::pair<std::size_t, int>,
         // //                        std::pair<T, T>>>(
         // //                        int>>(
         // //         data, n,
         // //         {.key = [](const std::pair<std::pair<T, T>,
-        // //                                    std::pair<size_t, int>>& value)
-        // //              -> std::pair<std::pair<size_t, int>, std::pair<T, T>>
+        // //                                    std::pair<std::size_t, int>>& value)
+        // //              -> std::pair<std::pair<std::size_t, int>, std::pair<T, T>>
         // {
         // //             return {value.second, value.first};
         // //         }});
 
-        // auto mc = nlargest<std::pair<std::pair<T, T>, std::pair<size_t,
+        // auto mc = nlargest<std::pair<std::pair<T, T>, std::pair<std::size_t,
         // int>>>(
         //     data, n,
         //     {.compare =
-        //          [](const std::pair<std::pair<T, T>, std::pair<size_t, int>>&
+        //          [](const std::pair<std::pair<T, T>, std::pair<std::size_t, int>>&
         //          a,
-        //             const std::pair<std::pair<T, T>, std::pair<size_t, int>>&
+        //             const std::pair<std::pair<T, T>, std::pair<std::size_t, int>>&
         //                 b) {
         //              if (a.second == b.second) return a.first > b.first;
         //              return a.second > b.second;
         //          }});
 
-        // std::vector<std::pair<std::pair<T, T>, size_t>> result(mc.size());
+        // std::vector<std::pair<std::pair<T, T>, std::size_t>> result(mc.size());
         // for (auto i = 0; i < result.size(); i++) {
         //     result[i] = {mc[i].first, mc[i].second.first};
         // }
         // return result;
 
         auto mc = nlargest<
-            std::pair<std::pair<T, T>, std::pair<size_t, size_t>>,
-            std::unordered_map<std::pair<T, T>, std::pair<size_t, size_t>,
+            std::pair<std::pair<T, T>, std::pair<std::size_t, std::size_t>>,
+            std::unordered_map<std::pair<T, T>, std::pair<std::size_t, std::size_t>,
                                PairHash<T>>>(
             this->counter.cbegin(), this->counter.cend(), n,
             {.compare =
-                 [](const std::pair<std::pair<T, T>, std::pair<size_t, size_t>>&
+                 [](const std::pair<std::pair<T, T>, std::pair<std::size_t, std::size_t>>&
                         a,
-                    const std::pair<std::pair<T, T>, std::pair<size_t, size_t>>&
+                    const std::pair<std::pair<T, T>, std::pair<std::size_t, std::size_t>>&
                         b) {
                      // if both docs and pair counts are equal, return those
                      // where first token in the pair (or the second if the
@@ -156,11 +157,11 @@ class PairCounter {
                      return a.second.second > b.second.second;
                  }});
 
-        std::vector<std::pair<std::pair<T, T>, size_t>> result;
+        std::vector<std::pair<std::pair<T, T>, std::size_t>> result;
         result.reserve(mc.size());
         std::transform(
             mc.cbegin(), mc.cend(), std::back_inserter(result),
-            [](const auto& element) -> std::pair<std::pair<T, T>, size_t> {
+            [](const auto& element) -> std::pair<std::pair<T, T>, std::size_t> {
                 return {element.first, element.second.second};
             });
         return result;
@@ -171,7 +172,7 @@ class PairCounter {
     /// @returns Pair of counts where `.first` is a number of docs the `pair`
     /// occured in corpus and `.second` is a number of occurences of `pair` in
     /// the whole corpus.
-    std::pair<size_t, size_t> operator()(
+    std::pair<std::size_t, std::size_t> operator()(
         const std::pair<T, T>& pair) const noexcept {
         // if `pair` was not in corpus
         if (!this->counter.contains(pair)) return {0, 0};
