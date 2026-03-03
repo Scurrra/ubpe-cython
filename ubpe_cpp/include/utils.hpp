@@ -112,8 +112,13 @@ class EnumWrapper {
    public:
     constexpr EnumWrapper() = default;
 
-    /// Construct a wrapper from the value of the underlying `Enum`.
+    /// Construct a wrapper from the passed enum.
     constexpr EnumWrapper(Enum e) : value_(static_cast<UnderlyingType>(e)) {}
+
+    /// Construct a wrapper from the integer value.
+    ///
+    /// Note: usefull for integration with Cython.
+    constexpr EnumWrapper(UnderlyingType value) : value_(value) {}
 
     constexpr EnumWrapper& operator|=(const EnumWrapper& other) {
         this->value_ |= other.value_;
@@ -143,6 +148,11 @@ class EnumWrapper {
     /// Check including of an instance of type `Enum`.
     constexpr bool has(Enum e) const {
         return (*this & EnumWrapper(e)).value_ != 0;
+    }
+
+    /// Check including of an instance of underlying integer type.
+    constexpr bool has(UnderlyingType value) const {
+        return (*this & EnumWrapper(value)).value_ != 0;
     }
 
     /// Check including of an instance of a type derived from this wrapper.
