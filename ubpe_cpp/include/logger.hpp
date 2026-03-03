@@ -3,6 +3,8 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <optional>
@@ -16,7 +18,7 @@ class Logger;
 /// @brief Configuration for progress bar.
 struct ProgressConfig {
     std::string unit = "item";
-    uint8_t precision = 3;
+    std::uint8_t precision = 3;
 };
 
 /// @brief Progress bar for tracking progress of a task.
@@ -24,19 +26,19 @@ class Progress {
    private:
     Logger* logger = nullptr;
     std::string unit;
-    uint8_t precision;
+    std::uint8_t precision;
 
     bool is_running = false;
     bool is_active = false;
-    std::optional<uint64_t> total = std::nullopt;
-    std::optional<uint64_t> initial = std::nullopt;
-    std::optional<uint64_t> current = std::nullopt;
+    std::optional<std::uint64_t> total = std::nullopt;
+    std::optional<std::uint64_t> initial = std::nullopt;
+    std::optional<std::uint64_t> current = std::nullopt;
     std::optional<std::chrono::time_point<std::chrono::steady_clock>>
         initial_time = std::nullopt;
     std::optional<std::chrono::time_point<std::chrono::steady_clock>>
         current_time = std::nullopt;
     std::optional<float> rate = std::nullopt;
-    std::optional<size_t> old_length = std::nullopt;
+    std::optional<std::size_t> old_length = std::nullopt;
 
     void reset() {
         if (this->is_running) {
@@ -82,8 +84,8 @@ class Progress {
 
     /// @brief Get the current progress.
     ///
-    /// @returns uint64_t: Current progress.
-    uint64_t get_current() {
+    /// @returns std::uint64_t: Current progress.
+    std::uint64_t get_current() {
         if (!this->is_active) {
             throw std::logic_error("Progress is not active");
         }
@@ -92,9 +94,9 @@ class Progress {
 
     /// @brief Initialize the progress meter.
     ///
-    /// @param total (uint64_t): Total progress value.
-    /// @param initial (uint64_t): Initial progress value.
-    Progress& operator()(uint64_t total, uint64_t initial) {
+    /// @param total (std::uint64_t): Total progress value.
+    /// @param initial (std::uint64_t): Initial progress value.
+    Progress& operator()(std::uint64_t total, std::uint64_t initial) {
         if (this->is_active || this->is_running) {
             this->stop();
         }
@@ -114,8 +116,8 @@ class Progress {
 
     /// @brief Initialize the progress meter.
     ///
-    /// @param total (uint64_t): Total progress value.
-    Progress& operator()(uint64_t total) {
+    /// @param total (std::uint64_t): Total progress value.
+    Progress& operator()(std::uint64_t total) {
         if (this->is_active || this->is_running) {
             this->stop();
         }
@@ -138,8 +140,8 @@ class Progress {
 
     /// @brief Manually update the progress meter.
     ///
-    /// @param inc (uint64_t): Number of items processed.
-    void update(uint64_t inc);
+    /// @param inc (std::uint64_t): Number of items processed.
+    void update(std::uint64_t inc);
 
     /// @brief Stop the progress meter.
     void stop();
@@ -148,20 +150,20 @@ class Progress {
     class iterator {
        private:
         std::reference_wrapper<Progress> progress;
-        uint64_t value;
+        std::uint64_t value;
 
        public:
         friend class Progress;
         friend class const_iterator;
 
-        using value_type = uint64_t;
+        using value_type = std::uint64_t;
         using difference_type = std::ptrdiff_t;
-        using pointer = uint64_t*;
-        using reference = uint64_t&;
+        using pointer = std::uint64_t*;
+        using reference = std::uint64_t&;
         using iterator_category = std::forward_iterator_tag;
-        using element_type = uint64_t;
+        using element_type = std::uint64_t;
 
-        constexpr iterator(Progress& progress, uint64_t value) noexcept
+        constexpr iterator(Progress& progress, std::uint64_t value) noexcept
             : progress(std::ref(progress)) {
             this->value = value;
         }
@@ -280,7 +282,7 @@ class Logger {
     /// @brief Logs a progress message.
     ///
     /// Note: The method is called automatically when the progress is updated.
-    std::optional<size_t> log_progress() {
+    std::optional<std::size_t> log_progress() {
         if (this->quiet) return std::nullopt;
 
         auto elapsed = static_cast<double>(
@@ -356,7 +358,7 @@ void Progress::run() {
     }
 }
 
-void Progress::update(uint64_t inc) {
+void Progress::update(std::uint64_t inc) {
     if (!this->is_running) {
         throw std::logic_error("Progress is not running");
     }

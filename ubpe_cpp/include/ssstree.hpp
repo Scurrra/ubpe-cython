@@ -46,7 +46,7 @@ class SSSTreeNode {
         auto [key, value] = element;
 
         // find common prefix for the node's key and `key`
-        size_t i = 0;
+        std::size_t i = 0;
         auto max_len = std::min(this->key.size(), key.size());
         while (i < max_len && this->key[i] == key[i]) i++;
 
@@ -131,7 +131,7 @@ class SSSTreeNode {
     /// present in the tree.
     std::optional<V> operator()(
         const K& key, std::vector<std::pair<K, std::optional<V>>>& stack,
-        size_t start = 0) const {
+        std::size_t start = 0) const {
         if (start >= key.size())
             throw std::out_of_range("`start` is out of range");
 
@@ -182,7 +182,7 @@ class SSSTree {
     /// @returns The new tree node.
     SSSTreeNode<K, V> operator+(std::pair<K, V> element) {
         // search which child is able to contain `key`
-        size_t i = 0;
+        std::size_t i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == element.first[0]) {
@@ -203,7 +203,7 @@ class SSSTree {
     /// @returns A value in the tree for `key`.
     std::optional<V> operator[](K& key) const {
         // search which child may contain `key`
-        size_t i = 0;
+        std::size_t i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == key[0]) {
@@ -222,13 +222,13 @@ class SSSTree {
     /// @param key Key for lookup.
     /// @returns A vector of key-value pairs in the tree where keys are prefixes
     /// or lengths of prefixes of `key` present in the tree.
-    variant<std::vector<std::pair<K, V>>, std::vector<std::pair<size_t, V>>>
-    operator()(const K& key, size_t start = 0, bool fast = false) const {
+    variant<std::vector<std::pair<K, V>>, std::vector<std::pair<std::size_t, V>>>
+    operator()(const K& key, std::size_t start = 0, bool fast = false) const {
         if (start >= key.size())
             throw std::out_of_range("`start` is out of range");
 
         // search which child may contain `key`
-        size_t i = 0;
+        std::size_t i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == key[start]) {
@@ -261,12 +261,12 @@ class SSSTree {
                     // return the prefixes
                     return prefixes;
                 } else {
-                    std::vector<std::pair<size_t, V>> prefixes;
+                    std::vector<std::pair<std::size_t, V>> prefixes;
                     prefixes.reserve(stack.size());
                     std::transform(
                         stack.cbegin(), stack.cend(),
                         std::back_inserter(prefixes),
-                        [](const auto& prefix) -> std::pair<size_t, V> {
+                        [](const auto& prefix) -> std::pair<std::size_t, V> {
                             return {prefix.first.size(), prefix.second.value()};
                         });
 
@@ -280,7 +280,7 @@ class SSSTree {
 
         // return empty thing if there is not a subtree that may contain `key`
         if (fast)
-            return std::vector<std::pair<size_t, V>>{};
+            return std::vector<std::pair<std::size_t, V>>{};
         else
             return std::vector<std::pair<K, V>>{};
     }
