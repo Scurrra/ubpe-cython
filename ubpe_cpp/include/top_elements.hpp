@@ -16,13 +16,13 @@ namespace ubpe {
 template <typename T, typename Compare = std::less<T>>
 class TopElements {
    private:
-    size_t n;
+    std::size_t n;
     heapq<T> heap;
 
    public:
     /// @brief Initialize a TopElements object with a maximum size and a
     /// comparison function.
-    TopElements(size_t n, Compare comp = Compare())
+    TopElements(std::size_t n, Compare comp = Compare())
         : n(n), heap({.compare = comp}) {}
 
     TopElements(const TopElements&) = default;
@@ -59,7 +59,7 @@ class TopElements {
     bool empty() const { return this->heap.empty(); }
 
     /// @brief Get the size of the heap.
-    size_t size() const { return this->heap.size(); }
+    std::size_t size() const { return this->heap.size(); }
 
     /// @brief Get the top element from the heap.
     const T& top() const { return this->heap.top(); }

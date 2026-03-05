@@ -20,23 +20,22 @@ namespace ubpe {
 
 /// @brief Information about candidate to be used in selection with
 /// `ubpe::TopElements`.
-template <typename TokenId>
 struct EncodingCandidate {
     double weight;
-    std::vector<TokenId> sequence;
-    Counter<TokenId> counter;
+    std::vector<std::uint32_t> sequence;
+    Counter<std::uint32_t> counter;
 
     EncodingCandidate() = default;
-    EncodingCandidate(double weight, std::vector<TokenId> sequence,
-                      Counter<TokenId> counter)
+    EncodingCandidate(double weight, std::vector<std::uint32_t> sequence,
+                      Counter<std::uint32_t> counter)
         : weight(weight), sequence(sequence), counter(counter) {}
     EncodingCandidate(const EncodingCandidate&) = default;
     EncodingCandidate(EncodingCandidate&&) = default;
     EncodingCandidate& operator=(const EncodingCandidate&) = default;
     EncodingCandidate& operator=(EncodingCandidate&&) = default;
 
-    // friend bool operator<(const EncodingCandidate& lhs,
-    //                       const EncodingCandidate& rhs);
+    friend bool operator<(const EncodingCandidate& lhs,
+                          const EncodingCandidate& rhs);
     bool operator<(const EncodingCandidate& rhs) {
         if (this->weight == rhs.weight) {
             return this->sequence.size() > rhs.sequence.size();
@@ -44,8 +43,8 @@ struct EncodingCandidate {
         return this->weight < rhs.weight;
     }
 
-    // friend bool operator>(const EncodingCandidate& lhs,
-    //                       const EncodingCandidate& rhs);
+    friend bool operator>(const EncodingCandidate& lhs,
+                          const EncodingCandidate& rhs);
     bool operator>(const EncodingCandidate& rhs) {
         if (this->weight == rhs.weight) {
             return this->sequence.size() < rhs.sequence.size();
@@ -54,23 +53,19 @@ struct EncodingCandidate {
     }
 
     /// @brief Construct a sequence-weight pair from the candidate.
-    std::pair<std::vector<TokenId>, double> operator()() const {
+    std::pair<std::vector<std::uint32_t>, double> operator()() const {
         return {this->sequence, this->weight};
     }
 };
 
-template <typename TokenId>
-bool operator<(const EncodingCandidate<TokenId>& lhs,
-               const EncodingCandidate<TokenId>& rhs) {
+bool operator<(const EncodingCandidate& lhs, const EncodingCandidate& rhs) {
     if (lhs.weight == rhs.weight) {
         return lhs.sequence.size() > rhs.sequence.size();
     }
     return lhs.weight < rhs.weight;
 }
 
-template <typename TokenId>
-bool operator>(const EncodingCandidate<TokenId>& lhs,
-               const EncodingCandidate<TokenId>& rhs) {
+bool operator>(const EncodingCandidate& lhs, const EncodingCandidate& rhs) {
     if (lhs.weight == rhs.weight) {
         return lhs.sequence.size() < rhs.sequence.size();
     }
@@ -81,33 +76,32 @@ bool operator>(const EncodingCandidate<TokenId>& lhs,
 /// the document.
 template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class Ubpe : public UbpeBase<DocType, TokenType> {
-   public:
-    using TokenId = typename UbpeBase<DocType, TokenType>::TokenId;
-
    private:
-    SSSTree<std::vector<TokenId>, TokenId> lookup;
+    SSSTree<std::vector<std::uint32_t>, std::uint32_t> lookup;
 
    public:
-    Ubpe(TokenId n_tokens, TokenId alphabet_size)
+    Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size)
         : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size) {}
 
-    Ubpe(TokenId n_tokens, TokenId alphabet_size,
-         std::map<TokenType, TokenId> alphabet)
+    Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size,
+         std::map<TokenType, std::uint32_t> alphabet)
         : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet) {}
 
-    Ubpe(TokenId n_tokens, TokenId alphabet_size,
-         std::map<TokenType, TokenId> alphabet,
-         std::map<TokenId, TokenType> inverse_alphabet,
-         std::map<std::vector<TokenId>, TokenId> tokens_forward_mapper,
-         std::map<TokenId, std::vector<TokenId>> tokens_backward_mapper,
-         std::map<TokenId, double> tokens_weights)
+    Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size,
+         std::map<TokenType, std::uint32_t> alphabet,
+         std::map<std::uint32_t, TokenType> inverse_alphabet,
+         std::map<std::vector<std::uint32_t>, std::uint32_t>
+             tokens_forward_mapper,
+         std::map<std::uint32_t, std::vector<std::uint32_t>>
+             tokens_backward_mapper,
+         std::map<std::uint32_t, double> tokens_weights)
         : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
                                        inverse_alphabet, tokens_forward_mapper,
                                        tokens_backward_mapper, tokens_weights) {
         // cache lookup of tokens for encoding
         for (const auto& [key, value] : inverse_alphabet) {
-            auto _ =
-                this->lookup + std::make_pair(std::vector<TokenId>{key}, value);
+            auto _ = this->lookup +
+                     std::make_pair(std::vector<std::uint32_t>{key}, value);
         }
         for (const auto& element : tokens_forward_mapper) {
             auto _ = this->lookup + element;
@@ -120,16 +114,17 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
     Ubpe& operator=(Ubpe&&) = default;
     ~Ubpe() = default;
 
-    void fit(const std::vector<DocType>& corpus, std::size_t n_candidates = 50,
-             bool rearrange_tokens = true, bool quiet = false) override {
+    void fit(const std::vector<DocType>& corpus,
+             std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
+             bool quiet = false) override {
         if (n_candidates == 0)
-            throw std::logic_error("n_candidates should not be 0");
+            throw std::logic_error("`n_candidates` should not be 0");
 
         auto logger =
             Logger({.scope = "Ubpe::fit", .quiet = quiet}, {.unit = "token"});
         logger.info("Starting fitting process");
 
-        std::vector<std::vector<TokenId>> _corpus;
+        std::vector<std::vector<std::uint32_t>> _corpus;
         _corpus.reserve(corpus.size());
         std::transform(
             corpus.cbegin(), corpus.cend(), std::back_inserter(_corpus),
@@ -144,19 +139,20 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         // recursively fit tokenizer with `corpus`
         while (max_token < this->n_tokens) {
             // find number of occurences of each pair of adjacent tokens
-            auto pairs_counter = PairCounter<TokenId>(_corpus);
+            auto pairs_counter = PairCounter<std::uint32_t>(_corpus);
             // find most frequent bytepairs, a.k.a. candidates
             auto mc = pairs_counter.most_common(n_candidates);
             if (mc.size() == 0) break;
 
             // find a banch of new tokens
             // first candidate is always added
-            std::vector<std::pair<std::pair<TokenId, TokenId>, std::size_t>>
+            std::vector<
+                std::pair<std::pair<std::uint32_t, std::uint32_t>, std::size_t>>
                 token_pairs = {mc[0]};
             // all substituted tokens must be distinct,
             // and `current_set` tracks these tokens
-            std::set<TokenId> current_set = {mc[0].first.first,
-                                             mc[0].first.second};
+            std::set<std::uint32_t> current_set = {mc[0].first.first,
+                                                   mc[0].first.second};
 
             // check each of top candidates from the second one
             for (std::size_t i = 1; i < mc.size(); i++) {
@@ -186,14 +182,16 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
             // merge subsequences for each pair of tokens and add it to the
             // mapings
-            std::unordered_map<TokenId, std::pair<TokenId, TokenId>> sub;
+            std::unordered_map<std::uint32_t,
+                               std::pair<std::uint32_t, std::uint32_t>>
+                sub;
             for (const auto& [pair, _] : token_pairs) {
                 max_token++;
-                this->tokens_weights[max_token] =
-                    std::log(static_cast<double>(1 + corpus.size()) /
-                             (1 + pairs_counter(pair).first));
+                this->tokens_weights[max_token] = std::log(
+                    static_cast<double>(1 + corpus.size()) /
+                    static_cast<double>(1 + pairs_counter(pair).first));
                 // merge subsequences
-                std::vector<TokenId> tokens_map;
+                std::vector<std::uint32_t> tokens_map;
                 if (this->tokens_backward_mapper.contains(pair.first)) {
                     tokens_map.insert(
                         tokens_map.end(),
@@ -240,14 +238,15 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             this->tokens_backward_mapper.cend(),
             std::inserter(this->tokens_forward_mapper,
                           this->tokens_forward_mapper.end()),
-            [](const auto& mapper) -> std::pair<std::vector<TokenId>, TokenId> {
+            [](const auto& mapper)
+                -> std::pair<std::vector<std::uint32_t>, std::uint32_t> {
                 return {mapper.second, mapper.first};
             });
 
         // cache lookup of tokens for encoding
         for (const auto& [key, value] : this->inverse_alphabet) {
-            auto _ =
-                this->lookup + std::make_pair(std::vector<TokenId>{key}, value);
+            auto _ = this->lookup +
+                     std::make_pair(std::vector<std::uint32_t>{key}, value);
         }
         for (const auto& element : this->tokens_forward_mapper) {
             auto _ = this->lookup + element;
@@ -255,7 +254,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         logger.info("Built the lookup tree");
     }
 
-    std::vector<std::pair<std::vector<TokenId>, double>> encode(
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
         const DocType& doc, std::uint8_t top_n = 1) const override {
         if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
             this->tokens_forward_mapper.size() == 0 ||
@@ -265,11 +264,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         // handle empty sequence
         if (doc.size() == 0) return {};
 
-        std::vector<TokenId> _doc = this->_doc_to_vec(doc);
+        std::vector<std::uint32_t> _doc = this->_doc_to_vec(doc);
 
         // build initial stack
-        std::stack<std::pair<std::size_t,
-                             std::vector<std::pair<std::size_t, TokenId>>>>
+        std::stack<std::pair<
+            std::size_t, std::vector<std::pair<std::size_t, std::uint32_t>>>>
             stacks;
         // from start
         std::size_t start = 0;
@@ -278,7 +277,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             // try to find all key-value pairs in lookup tree where keys are
             // subsequences from `start` in `doc`, i.e. basic tokens' sequences
             // from `start` in `doc`
-            std::vector<std::pair<std::size_t, TokenId>> stack =
+            std::vector<std::pair<std::size_t, std::uint32_t>> stack =
                 this->lookup(_doc, start, true);
             // place start-stack pair in `stacks`
             stacks.emplace(std::make_pair(start, stack));
@@ -288,7 +287,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
         // build nodes
         std::map<std::size_t,
-                 std::map<std::size_t, std::pair<TokenId, std::size_t>>>
+                 std::map<std::size_t, std::pair<std::uint32_t, std::size_t>>>
             nodes;
         // check all stacks form the end of `doc`
         while (!stacks.empty()) {
@@ -298,7 +297,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
             // map which points keys (sequences of basic tokens) to pairs of
             // values and starts of following tokens
-            std::map<std::size_t, std::pair<TokenId, std::size_t>> next;
+            std::map<std::size_t, std::pair<std::uint32_t, std::size_t>> next;
             // process each candidate
             for (const auto& [key_len, value] : stack) {
                 // compute the start of the following token
@@ -319,23 +318,28 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         }
 
         // map that points start position to up to `top_n` candidate tails
-        std::map<std::size_t, std::vector<EncodingCandidate<TokenId>>> tails;
+        std::map<std::size_t, std::vector<EncodingCandidate>> tails;
         // initialize a tail that is after the end of `doc`, that has zero
         // weight, is an empty sequence, and counts of it's tokens are zeros
-        tails[_doc.size()] = {
-            {0.0, std::vector<TokenId>{}, Counter<TokenId>()}};
+        tails[_doc.size()] = {{static_cast<double>(0),
+                               std::vector<std::uint32_t>{},
+                               Counter<std::uint32_t>()}};
         // form the end of `doc`
         if (top_n == 1) {
-            for (int start = _doc.size() - 1; start >= 0; start--) {
+            for (std::int64_t start =
+                     static_cast<std::int64_t>(_doc.size() - 1);
+                 start >= 0; start--) {
+                auto _start = static_cast<std::size_t>(start);
+
                 // best candidate from `start`
-                std::optional<EncodingCandidate<TokenId>> buf = std::nullopt;
+                std::optional<EncodingCandidate> buf = std::nullopt;
                 // for each subsequence from `start`
-                for (const auto& [_, node] : nodes[start]) {
+                for (const auto& [_, node] : nodes[_start]) {
                     const auto& [token, next_start] = node;
                     // for each tail that starts where the subsequence ends
                     for (const auto& [_, tail, counter] : tails[next_start]) {
                         // new tail
-                        std::vector<TokenId> buf_element = {token};
+                        std::vector<std::uint32_t> buf_element = {token};
                         buf_element.insert(buf_element.end(), tail.cbegin(),
                                            tail.cend());
                         // new counter
@@ -349,40 +353,45 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                                 return total +
                                        (this->tokens_weights.contains(
                                             element.first)
-                                            ? (1 + std::log(element.second)) *
+                                            ? (1 + std::log(static_cast<double>(
+                                                       element.second))) *
                                                   this->tokens_weights.at(
                                                       element.first)
-                                            : 0.0);
+                                            : static_cast<double>(0));
                             });
                         // add a new candidate
                         if (!buf.has_value()) {
-                            buf = EncodingCandidate<TokenId>(
-                                buf_weight, buf_element, buf_counter);
+                            buf = EncodingCandidate(buf_weight, buf_element,
+                                                    buf_counter);
                         } else {
                             if ((buf->weight == buf_weight &&
                                  buf->sequence.size() > buf_element.size()) ||
                                 buf->weight < buf_weight) {
-                                buf = EncodingCandidate<TokenId>(
-                                    buf_weight, buf_element, buf_counter);
+                                buf = EncodingCandidate(buf_weight, buf_element,
+                                                        buf_counter);
                             }
                         }
                     }
                 }
 
                 // add top candidate to `tails`
-                tails[start] = {buf.value()};
+                tails[_start] = {buf.value()};
             }
         } else {
-            for (int start = _doc.size() - 1; start >= 0; start--) {
+            for (std::int64_t start =
+                     static_cast<std::int64_t>(_doc.size() - 1);
+                 start >= 0; start--) {
+                auto _start = static_cast<std::size_t>(start);
+
                 // all candidates from `start`
-                TopElements<EncodingCandidate<TokenId>> buf(top_n);
+                TopElements<EncodingCandidate> buf(top_n);
                 // for each subsequence from `start`
-                for (const auto& [_, node] : nodes[start]) {
+                for (const auto& [_, node] : nodes[_start]) {
                     const auto& [token, next_start] = node;
                     // for each tail that starts where the subsequence ends
                     for (const auto& [_, tail, counter] : tails[next_start]) {
                         // new tail
-                        std::vector<TokenId> buf_element = {token};
+                        std::vector<std::uint32_t> buf_element = {token};
                         buf_element.insert(buf_element.end(), tail.cbegin(),
                                            tail.cend());
                         // new counter
@@ -396,10 +405,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                                 return total +
                                        (this->tokens_weights.contains(
                                             element.first)
-                                            ? (1 + std::log(element.second)) *
+                                            ? (1 + std::log(static_cast<double>(
+                                                       element.second))) *
                                                   this->tokens_weights.at(
                                                       element.first)
-                                            : 0.0);
+                                            : static_cast<double>(0));
                             });
                         // add a new candidate
                         buf.push(EncodingCandidate(buf_weight, buf_element,
@@ -408,12 +418,12 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                 }
 
                 // add top candidates to `tails`
-                tails[start] = buf.sorted();
+                tails[_start] = buf.sorted();
             }
         }
 
         // prepare result container
-        std::vector<std::pair<std::vector<TokenId>, double>> candidates;
+        std::vector<std::pair<std::vector<std::uint32_t>, double>> candidates;
         candidates.reserve(tails[0].size());
         // remove counter
         std::transform(tails[0].cbegin(), tails[0].cend(),
@@ -422,7 +432,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         return candidates;
     }
 
-    DocType decode(const std::vector<TokenId>& tokens) const override {
+    DocType decode(const std::vector<std::uint32_t>& tokens) const override {
         if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
@@ -432,7 +442,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         if (tokens.size() == 0) return {};
 
         // future decoded sequence
-        std::vector<TokenId> document;
+        std::vector<std::uint32_t> document;
 
         // for each token
         for (const auto& token : tokens) {

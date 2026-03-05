@@ -79,7 +79,7 @@ using OptionalPatternType = std::conditional_t<
 ///
 /// Fields:
 /// - `known_words`: A variant that can hold a monostate, a vector of `DocType`,
-/// a set of `DocType`, or a map of `DocType` to `uint32_t`.
+/// a set of `DocType`, or a map of `DocType` to `std::uint32_t`.
 /// - `break_tokens`: A variant that can hold a monostate, a vector of
 /// `TokenType`, a set of `TokenType`, or an unordered set of `TokenType`.
 /// - `regex_pattern`: An optional string representing a regex pattern.
@@ -88,7 +88,7 @@ using OptionalPatternType = std::conditional_t<
 template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 struct SplitPipelineConfig {
     std::variant<std::monostate, std::vector<DocType>, std::set<DocType>,
-                 std::map<DocType, uint32_t>>
+                 std::map<DocType, std::uint32_t>>
         known_words{};
     std::variant<std::monostate, std::vector<TokenType>, std::set<TokenType>,
                  std::unordered_set<TokenType>>
@@ -103,23 +103,23 @@ struct SplitPipelineConfig {
 template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class SplitPipeline {
    private:
-    std::map<TokenType, uint32_t> alphabet;
-    std::optional<std::map<DocType, uint32_t>> known_words{};
+    std::map<TokenType, std::uint32_t> alphabet;
+    std::optional<std::map<DocType, std::uint32_t>> known_words{};
     std::optional<std::unordered_set<TokenType>> break_tokens{};
     [[no_unique_address]] OptionalPatternType<TokenType> regex_pattern{};
     std::optional<std::unordered_set<TokenType>> stop_tokens{};
 
     [[no_unique_address]] OptionalRegexType<TokenType> regex{};
-    std::optional<SSSTree<DocType, uint32_t>> kw_ssstree{};
+    std::optional<SSSTree<DocType, std::uint32_t>> kw_ssstree{};
 
    public:
     /// @brief Constructor for the SplitPipeline class.
     /// @param alphabet A map representing the alphabet.
     /// @param config Configuration for the pipeline.
-    SplitPipeline(const std::map<TokenType, uint32_t>& alphabet,
+    SplitPipeline(const std::map<TokenType, std::uint32_t>& alphabet,
                   SplitPipelineConfig<DocType, TokenType> config = {})
         : alphabet(alphabet) {
-        uint32_t max_token = static_cast<uint32_t>(this->alphabet.size());
+        std::uint32_t max_token = static_cast<std::uint32_t>(this->alphabet.size());
 
         std::unordered_set<TokenType> tokens;
         std::transform(this->alphabet.cbegin(), this->alphabet.cend(),
@@ -145,11 +145,11 @@ class SplitPipeline {
                     this->known_words->emplace(word, max_token++);
                 }
             }
-        } else if (std::holds_alternative<std::map<DocType, uint32_t>>(
+        } else if (std::holds_alternative<std::map<DocType, std::uint32_t>>(
                        config.known_words)) {
-            uint32_t _max_token = max_token;
+            std::uint32_t _max_token = max_token;
             const auto& known_words =
-                std::get<std::map<DocType, uint32_t>>(config.known_words);
+                std::get<std::map<DocType, std::uint32_t>>(config.known_words);
             if (known_words.size() != 0) {
                 this->known_words.emplace();
                 for (const auto& [word, token] : known_words) {
@@ -279,7 +279,7 @@ class SplitPipeline {
     /// @param mode The splitting mode.
     /// @param leave_separators Whether to leave separators in the output.
     /// @return A vector of vectors of token indices.
-    std::vector<std::vector<uint32_t>> operator()(
+    std::vector<std::vector<std::uint32_t>> operator()(
         const DocType& doc, SplitMode::value_type mode = SplitMode::FULL,
         bool leave_separators = true) {
         // if the `doc` should and can be splitted into parts by known words it
@@ -288,7 +288,7 @@ class SplitPipeline {
         // word, and each other part will be splitted by other modes on
         if (mode.has(SplitMode::KNOWN_WORDS) && this->kw_ssstree.has_value()) {
             const auto& kw_ssstree = this->kw_ssstree.value();
-            std::vector<std::vector<uint32_t>> parts{};
+            std::vector<std::vector<std::uint32_t>> parts{};
 
             // search for a known word, split the part before the word and
             // append the token of the word itself
@@ -297,7 +297,7 @@ class SplitPipeline {
                 // vector of pairs, where
                 // .first -- length of the known word
                 // .second -- the token assigned to this word
-                std::vector<std::pair<size_t, uint32_t>> kw_candidates =
+                std::vector<std::pair<std::size_t, std::uint32_t>> kw_candidates =
                     kw_ssstree(doc, si, true);
                 if (kw_candidates.empty()) continue;
 
@@ -305,7 +305,7 @@ class SplitPipeline {
                     auto split = DocType(part_begin, doc.cbegin() + si);
                     for (const DocType& part :
                          this->split_part(split, mode, leave_separators)) {
-                        std::vector<uint32_t> _part{};
+                        std::vector<std::uint32_t> _part{};
                         _part.reserve(part.size());
                         std::transform(part.cbegin(), part.cend(),
                                        std::back_inserter(_part),
@@ -328,7 +328,7 @@ class SplitPipeline {
                 auto split = DocType(part_begin, doc.cend());
                 for (const DocType& part :
                      this->split_part(split, mode, leave_separators)) {
-                    std::vector<uint32_t> _part{};
+                    std::vector<std::uint32_t> _part{};
                     _part.reserve(part.size());
                     std::transform(part.cbegin(), part.cend(),
                                    std::back_inserter(_part),
@@ -344,10 +344,10 @@ class SplitPipeline {
 
         // else, the `doc` should be splitted into parts by other modes being
         // the only part
-        std::vector<std::vector<uint32_t>> parts{};
+        std::vector<std::vector<std::uint32_t>> parts{};
         for (const DocType& part :
              this->split_part(doc, mode, leave_separators)) {
-            std::vector<uint32_t> _part{};
+            std::vector<std::uint32_t> _part{};
             _part.reserve(part.size());
             std::transform(part.cbegin(), part.cend(),
                            std::back_inserter(_part),

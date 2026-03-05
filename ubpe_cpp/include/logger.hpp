@@ -16,7 +16,7 @@ class Logger;
 /// @brief Configuration for progress bar.
 struct ProgressConfig {
     std::string unit = "item";
-    uint8_t precision = 3;
+    std::uint8_t precision = 3;
 };
 
 /// @brief Progress bar for tracking progress of a task.
@@ -24,19 +24,19 @@ class Progress {
    private:
     Logger* logger = nullptr;
     std::string unit;
-    uint8_t precision;
+    std::uint8_t precision;
 
     bool is_running = false;
     bool is_active = false;
-    std::optional<uint64_t> total = std::nullopt;
-    std::optional<uint64_t> initial = std::nullopt;
-    std::optional<uint64_t> current = std::nullopt;
+    std::optional<std::uint64_t> total = std::nullopt;
+    std::optional<std::uint64_t> initial = std::nullopt;
+    std::optional<std::uint64_t> current = std::nullopt;
     std::optional<std::chrono::time_point<std::chrono::steady_clock>>
         initial_time = std::nullopt;
     std::optional<std::chrono::time_point<std::chrono::steady_clock>>
         current_time = std::nullopt;
-    std::optional<float> rate = std::nullopt;
-    std::optional<size_t> old_length = std::nullopt;
+    std::optional<double> rate = std::nullopt;
+    std::optional<std::size_t> old_length = std::nullopt;
 
     void reset() {
         if (this->is_running) {
@@ -82,8 +82,8 @@ class Progress {
 
     /// @brief Get the current progress.
     ///
-    /// @returns uint64_t: Current progress.
-    uint64_t get_current() {
+    /// @returns std::uint64_t: Current progress.
+    std::uint64_t get_current() {
         if (!this->is_active) {
             throw std::logic_error("Progress is not active");
         }
@@ -92,9 +92,9 @@ class Progress {
 
     /// @brief Initialize the progress meter.
     ///
-    /// @param total (uint64_t): Total progress value.
-    /// @param initial (uint64_t): Initial progress value.
-    Progress& operator()(uint64_t total, uint64_t initial) {
+    /// @param total (std::uint64_t): Total progress value.
+    /// @param initial (std::uint64_t): Initial progress value.
+    Progress& operator()(std::uint64_t total, std::uint64_t initial) {
         if (this->is_active || this->is_running) {
             this->stop();
         }
@@ -114,8 +114,8 @@ class Progress {
 
     /// @brief Initialize the progress meter.
     ///
-    /// @param total (uint64_t): Total progress value.
-    Progress& operator()(uint64_t total) {
+    /// @param total (std::uint64_t): Total progress value.
+    Progress& operator()(std::uint64_t total) {
         if (this->is_active || this->is_running) {
             this->stop();
         }
@@ -138,8 +138,8 @@ class Progress {
 
     /// @brief Manually update the progress meter.
     ///
-    /// @param inc (uint64_t): Number of items processed.
-    void update(uint64_t inc);
+    /// @param inc (std::uint64_t): Number of items processed.
+    void update(std::uint64_t inc);
 
     /// @brief Stop the progress meter.
     void stop();
@@ -148,20 +148,20 @@ class Progress {
     class iterator {
        private:
         std::reference_wrapper<Progress> progress;
-        uint64_t value;
+        std::uint64_t value;
 
        public:
         friend class Progress;
         friend class const_iterator;
 
-        using value_type = uint64_t;
+        using value_type = std::uint64_t;
         using difference_type = std::ptrdiff_t;
-        using pointer = uint64_t*;
-        using reference = uint64_t&;
+        using pointer = std::uint64_t*;
+        using reference = std::uint64_t&;
         using iterator_category = std::forward_iterator_tag;
-        using element_type = uint64_t;
+        using element_type = std::uint64_t;
 
-        constexpr iterator(Progress& progress, uint64_t value) noexcept
+        constexpr iterator(Progress& progress, std::uint64_t value) noexcept
             : progress(std::ref(progress)) {
             this->value = value;
         }
@@ -280,7 +280,7 @@ class Logger {
     /// @brief Logs a progress message.
     ///
     /// Note: The method is called automatically when the progress is updated.
-    std::optional<size_t> log_progress() {
+    std::optional<std::size_t> log_progress() {
         if (this->quiet) return std::nullopt;
 
         auto elapsed = static_cast<double>(
@@ -288,15 +288,15 @@ class Logger {
                                this->progress.current_time.value() -
                                this->progress.initial_time.value())
                                .count()) /
-                       1e9f;
+                       static_cast<double>(1e9);
         auto left =
             this->progress.total.value() > this->progress.current.value()
                 ? this->progress.rate.value() > 0.0
-                      ? (this->progress.total.value() -
-                         this->progress.current.value()) /
+                      ? static_cast<double>(this->progress.total.value() -
+                                            this->progress.current.value()) /
                             this->progress.rate.value()
-                      : 0.0
-                : 0.0;
+                      : static_cast<double>(0)
+                : static_cast<double>(0);
         auto estimated = elapsed + left;
 
         std::ostringstream times;
@@ -323,8 +323,8 @@ class Logger {
         }
         std::string msg = msgs.str();
         if (this->progress.old_length.has_value()) {
-            auto width =
-                std::max(this->progress.old_length.value(), msg.size());
+            auto width = static_cast<int>(
+                std::max(this->progress.old_length.value(), msg.size()));
             std::cerr << std::left << std::setw(width) << std::setfill(' ')
                       << msg;
         } else {
@@ -356,7 +356,7 @@ void Progress::run() {
     }
 }
 
-void Progress::update(uint64_t inc) {
+void Progress::update(std::uint64_t inc) {
     if (!this->is_running) {
         throw std::logic_error("Progress is not running");
     }
@@ -368,19 +368,21 @@ void Progress::update(uint64_t inc) {
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 this->current_time.value() - this->initial_time.value())
                 .count()) /
-        1e9f;
+        static_cast<double>(1e9);
     this->rate.value() =
-        (this->current.value() - this->initial.value()) / elapsed;
+        static_cast<double>(this->current.value() - this->initial.value()) /
+        elapsed;
 
     if (this->logger) {
         this->old_length = this->logger->log_progress();
     } else {
         auto left = this->total.value() > this->current.value()
                         ? this->rate.value() > 0.0
-                              ? (this->total.value() - this->current.value()) /
+                              ? static_cast<double>(this->total.value() -
+                                                    this->current.value()) /
                                     this->rate.value()
-                              : 0.0
-                        : 0.0;
+                              : static_cast<double>(0)
+                        : static_cast<double>(0);
         auto estimated = elapsed + left;
 
         std::ostringstream times;
@@ -424,10 +426,11 @@ Progress::iterator& Progress::iterator::operator++() {
                            this->progress.get().current_time.value() -
                            this->progress.get().initial_time.value())
                            .count()) /
-                   1e9f;
-    this->progress.get().rate.value() = (this->progress.get().current.value() -
-                                         this->progress.get().initial.value()) /
-                                        elapsed;
+                   static_cast<double>(1e9);
+    this->progress.get().rate.value() =
+        static_cast<double>(this->progress.get().current.value() -
+                            this->progress.get().initial.value()) /
+        elapsed;
 
     if (this->progress.get().logger) {
         this->progress.get().old_length =
@@ -436,11 +439,12 @@ Progress::iterator& Progress::iterator::operator++() {
         auto left = this->progress.get().total.value() >
                             this->progress.get().current.value()
                         ? this->progress.get().rate.value() > 0.0
-                              ? (this->progress.get().total.value() -
-                                 this->progress.get().current.value()) /
+                              ? static_cast<double>(
+                                    this->progress.get().total.value() -
+                                    this->progress.get().current.value()) /
                                     this->progress.get().rate.value()
-                              : 0.0
-                        : 0.0;
+                              : static_cast<double>(0)
+                        : static_cast<double>(0);
         auto estimated = elapsed + left;
 
         std::ostringstream times;

@@ -44,7 +44,6 @@ concept DocumentT = std::ranges::range<T> ||
 ///   to improve avalanche before combination.
 ///
 /// @tparam T Integral type (constrained by std::integral)
-/// @return std::size_t hash value (truncated if size_t < 64 bits)
 template <std::integral T>
 struct PairHash {
     [[nodiscard]] constexpr std::size_t operator()(
