@@ -283,20 +283,21 @@ class Logger {
     std::optional<std::size_t> log_progress() {
         if (this->quiet) return std::nullopt;
 
-        auto elapsed = static_cast<double>(
-                           std::chrono::duration_cast<std::chrono::nanoseconds>(
-                               this->progress.current_time.value() -
-                               this->progress.initial_time.value())
-                               .count()) /
-                       static_cast<double>(1e9);
-        auto left =
+        double elapsed =
+            static_cast<double>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    this->progress.current_time.value() -
+                    this->progress.initial_time.value())
+                    .count()) /
+            1e9;
+        double left =
             this->progress.total.value() > this->progress.current.value()
                 ? this->progress.rate.value() > 0.0
                       ? static_cast<double>(this->progress.total.value() -
                                             this->progress.current.value()) /
                             this->progress.rate.value()
-                      : static_cast<double>(0)
-                : static_cast<double>(0);
+                      : 0.0
+                : 0.0;
         auto estimated = elapsed + left;
 
         std::ostringstream times;
@@ -363,12 +364,12 @@ void Progress::update(std::uint64_t inc) {
 
     this->current.value() += inc;
     this->current_time.value() = std::chrono::steady_clock::now();
-    auto elapsed =
+    double elapsed =
         static_cast<double>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 this->current_time.value() - this->initial_time.value())
                 .count()) /
-        static_cast<double>(1e9);
+        1e9;
     this->rate.value() =
         static_cast<double>(this->current.value() - this->initial.value()) /
         elapsed;
@@ -376,13 +377,13 @@ void Progress::update(std::uint64_t inc) {
     if (this->logger) {
         this->old_length = this->logger->log_progress();
     } else {
-        auto left = this->total.value() > this->current.value()
-                        ? this->rate.value() > 0.0
-                              ? static_cast<double>(this->total.value() -
-                                                    this->current.value()) /
-                                    this->rate.value()
-                              : static_cast<double>(0)
-                        : static_cast<double>(0);
+        double left = this->total.value() > this->current.value()
+                          ? this->rate.value() > 0.0
+                                ? static_cast<double>(this->total.value() -
+                                                      this->current.value()) /
+                                      this->rate.value()
+                                : 0.0
+                          : 0.0;
         auto estimated = elapsed + left;
 
         std::ostringstream times;
@@ -421,12 +422,12 @@ Progress::iterator& Progress::iterator::operator++() {
     this->progress.get().current_time.value() =
         std::chrono::steady_clock::now();
 
-    auto elapsed = static_cast<double>(
-                       std::chrono::duration_cast<std::chrono::nanoseconds>(
-                           this->progress.get().current_time.value() -
-                           this->progress.get().initial_time.value())
-                           .count()) /
-                   static_cast<double>(1e9);
+    double elapsed = static_cast<double>(
+                         std::chrono::duration_cast<std::chrono::nanoseconds>(
+                             this->progress.get().current_time.value() -
+                             this->progress.get().initial_time.value())
+                             .count()) /
+                     1e9;
     this->progress.get().rate.value() =
         static_cast<double>(this->progress.get().current.value() -
                             this->progress.get().initial.value()) /
@@ -436,15 +437,15 @@ Progress::iterator& Progress::iterator::operator++() {
         this->progress.get().old_length =
             this->progress.get().logger->log_progress();
     } else {
-        auto left = this->progress.get().total.value() >
-                            this->progress.get().current.value()
-                        ? this->progress.get().rate.value() > 0.0
-                              ? static_cast<double>(
-                                    this->progress.get().total.value() -
-                                    this->progress.get().current.value()) /
-                                    this->progress.get().rate.value()
-                              : static_cast<double>(0)
-                        : static_cast<double>(0);
+        double left = this->progress.get().total.value() >
+                              this->progress.get().current.value()
+                          ? this->progress.get().rate.value() > 0.0
+                                ? static_cast<double>(
+                                      this->progress.get().total.value() -
+                                      this->progress.get().current.value()) /
+                                      this->progress.get().rate.value()
+                                : 0.0
+                          : 0.0;
         auto estimated = elapsed + left;
 
         std::ostringstream times;
