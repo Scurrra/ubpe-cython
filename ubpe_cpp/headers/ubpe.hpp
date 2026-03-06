@@ -188,8 +188,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             for (const auto& [pair, _] : token_pairs) {
                 max_token++;
                 this->tokens_weights[max_token] = std::log(
-                    static_cast<double>(1 + corpus.size()) /
-                    static_cast<double>(1 + pairs_counter(pair).first));
+                    (1.0 + corpus.size()) / (1.0 + pairs_counter(pair).first));
                 // merge subsequences
                 std::vector<std::uint32_t> tokens_map;
                 if (this->tokens_backward_mapper.contains(pair.first)) {
@@ -321,9 +320,8 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         std::map<std::size_t, std::vector<EncodingCandidate>> tails;
         // initialize a tail that is after the end of `doc`, that has zero
         // weight, is an empty sequence, and counts of it's tokens are zeros
-        tails[_doc.size()] = {{static_cast<double>(0),
-                               std::vector<std::uint32_t>{},
-                               Counter<std::uint32_t>()}};
+        tails[_doc.size()] = {
+            {0.0, std::vector<std::uint32_t>{}, Counter<std::uint32_t>()}};
         // form the end of `doc`
         if (top_n == 1) {
             for (std::int64_t start =
@@ -347,17 +345,16 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                         buf_counter[token]++;
                         // weight of the tail
                         double buf_weight = std::accumulate(
-                            buf_counter.cbegin(), buf_counter.cend(),
-                            static_cast<double>(0),
-                            [this](auto total, const auto& element) {
+                            buf_counter.cbegin(), buf_counter.cend(), 0.0,
+                            [this](double total, const auto& element) {
+                                double freq = element.second;
                                 return total +
                                        (this->tokens_weights.contains(
                                             element.first)
-                                            ? (1 + std::log(static_cast<double>(
-                                                       element.second))) *
+                                            ? (1.0 + std::log(freq)) *
                                                   this->tokens_weights.at(
                                                       element.first)
-                                            : static_cast<double>(0));
+                                            : 0.0);
                             });
                         // add a new candidate
                         if (!buf.has_value()) {
@@ -399,17 +396,16 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                         buf_counter[token]++;
                         // weight of the tail
                         double buf_weight = std::accumulate(
-                            buf_counter.cbegin(), buf_counter.cend(),
-                            static_cast<double>(0),
-                            [this](auto total, const auto& element) {
+                            buf_counter.cbegin(), buf_counter.cend(), 0.0,
+                            [this](double total, const auto& element) {
+                                double freq = element.second;
                                 return total +
                                        (this->tokens_weights.contains(
                                             element.first)
-                                            ? (1 + std::log(static_cast<double>(
-                                                       element.second))) *
+                                            ? (1.0 + std::log(freq)) *
                                                   this->tokens_weights.at(
                                                       element.first)
-                                            : static_cast<double>(0));
+                                            : 0.0);
                             });
                         // add a new candidate
                         buf.push(EncodingCandidate(buf_weight, buf_element,

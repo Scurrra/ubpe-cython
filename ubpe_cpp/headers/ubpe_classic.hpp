@@ -124,8 +124,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             for (const auto& [pair, _] : token_pairs) {
                 max_token++;
                 this->tokens_weights[max_token] = std::log(
-                    static_cast<double>(1 + corpus.size()) /
-                    static_cast<double>(1 + pairs_counter(pair).first));
+                    (1.0 + corpus.size()) / (1.0 + pairs_counter(pair).first));
                 this->tokens_backward_mapper[max_token] = {pair.first,
                                                            pair.second};
                 sub[pair.first] = {pair.second, max_token};
@@ -241,13 +240,13 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
         // compute weight of encoded `doc`
         auto counter = Counter<std::uint32_t>(_doc);
         double weight = std::accumulate(
-            counter.cbegin(), counter.cend(), static_cast<double>(0),
-            [this](auto total, auto& element) {
+            counter.cbegin(), counter.cend(), 0.0,
+            [this](double total, auto& element) {
+                double freq = element.second;
                 return total + (this->tokens_weights.contains(element.first)
-                                    ? (1 + std::log(static_cast<double>(
-                                               element.second))) *
+                                    ? (1.0 + std::log(freq)) *
                                           this->tokens_weights.at(element.first)
-                                    : static_cast<double>(0));
+                                    : 0.0);
             });
 
         return {{_doc, weight}};
