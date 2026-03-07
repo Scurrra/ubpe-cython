@@ -103,23 +103,24 @@ struct SplitPipelineConfig {
 template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class SplitPipeline {
    private:
-    std::map<TokenType, std::uint32_t> alphabet;
-    std::optional<std::map<DocType, std::uint32_t>> known_words{};
-    std::optional<std::unordered_set<TokenType>> break_tokens{};
-    [[no_unique_address]] OptionalPatternType<TokenType> regex_pattern{};
-    std::optional<std::unordered_set<TokenType>> stop_tokens{};
-
     [[no_unique_address]] OptionalRegexType<TokenType> regex{};
     std::optional<SSSTree<DocType, std::uint32_t>> kw_ssstree{};
 
    public:
+    const std::map<TokenType, std::uint32_t> alphabet;
+    const std::optional<std::map<DocType, std::uint32_t>> known_words{};
+    const std::optional<std::unordered_set<TokenType>> break_tokens{};
+    [[no_unique_address]] const OptionalPatternType<TokenType> regex_pattern{};
+    const std::optional<std::unordered_set<TokenType>> stop_tokens{};
+
     /// @brief Constructor for the SplitPipeline class.
     /// @param alphabet A map representing the alphabet.
     /// @param config Configuration for the pipeline.
     SplitPipeline(const std::map<TokenType, std::uint32_t>& alphabet,
                   SplitPipelineConfig<DocType, TokenType> config = {})
         : alphabet(alphabet) {
-        std::uint32_t max_token = static_cast<std::uint32_t>(this->alphabet.size());
+        std::uint32_t max_token =
+            static_cast<std::uint32_t>(this->alphabet.size());
 
         std::unordered_set<TokenType> tokens;
         std::transform(this->alphabet.cbegin(), this->alphabet.cend(),
@@ -297,8 +298,8 @@ class SplitPipeline {
                 // vector of pairs, where
                 // .first -- length of the known word
                 // .second -- the token assigned to this word
-                std::vector<std::pair<std::size_t, std::uint32_t>> kw_candidates =
-                    kw_ssstree(doc, si, true);
+                std::vector<std::pair<std::size_t, std::uint32_t>>
+                    kw_candidates = kw_ssstree(doc, si, true);
                 if (kw_candidates.empty()) continue;
 
                 if (doc.cbegin() + si != part_begin) {

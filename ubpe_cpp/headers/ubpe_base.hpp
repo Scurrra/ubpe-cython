@@ -6,12 +6,16 @@
 #include <cstdint>
 #include <iterator>
 #include <map>
+#include <optional>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
+#include "splitter.hpp"
 #include "utils.hpp"
 
 namespace ubpe {
@@ -29,6 +33,13 @@ class UbpeBase {
     std::map<std::uint32_t, std::vector<std::uint32_t>> tokens_backward_mapper;
 
     std::map<std::uint32_t, double> tokens_weights;
+
+    std::optional<std::map<DocType, std::uint32_t>> known_words{};
+    std::optional<std::map<std::uint32_t, DocType>> inverse_known_words{};
+    std::optional<std::set<TokenType>> break_tokens{};
+    [[no_unique_address]] OptionalPatternType<TokenType> regex_pattern{};
+    std::optional<std::set<TokenType>> stop_tokens{};
+    SplitPipeline<DocType, TokenType> split_pipeline;
 
     /// @brief Function that rearranges found tokens according to their weights
     /// and trims dictionary of the tokenizer to be not greater than
@@ -172,6 +183,20 @@ class UbpeBase {
         vec.resize(left);
     }
 
+    /// @brief Function for replacing pair of adjacent tokens in a list with a
+    /// new one.
+    /// @param vecs Vectors in which adjacent pairs will be replaced.
+    /// @param sub A substitution map, where keys are first tokens in the pairs,
+    /// and the values are pair of the second token and the new one wrapped in a
+    /// list.
+    static void _replace_token_pairs(
+        std::vector<std::vector<std::uint32_t>>& vecs,
+        const std::unordered_map<
+            std::uint32_t, std::pair<std::uint32_t, std::uint32_t>>& sub) {
+        std::for_each(vecs.begin(), vecs.end(),
+                      [&sub](auto& doc) { _replace_token_pairs(doc, sub); });
+    }
+
     /// @brief Convert document of `DocType` to vector of base tokens.
     /// @param doc Document, i.e. data of type `DocType`.
     /// @return Vector of base tokens.
@@ -217,7 +242,60 @@ class UbpeBase {
     }
 
     UbpeBase(std::uint32_t n_tokens, std::uint32_t alphabet_size,
-             std::map<TokenType, std::uint32_t> alphabet)
+             std::map<TokenType, std::uint32_t> alphabet,
+             std::optional<std::map<DocType, std::uint32_t>> known_words =
+                 std::nullopt,
+             std::optional<std::set<TokenType>> break_tokens = std::nullopt,
+             std::optional<std::variant<std::string, std::wstring>>
+                 regex_pattern = std::nullopt,
+             std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
+        : n_tokens(n_tokens),
+          alphabet_size(alphabet_size),
+          known_words(known_words),
+          break_tokens(break_tokens),
+          stop_tokens(stop_tokens) {
+        if (alphabet_size != alphabet.size())
+            throw std::invalid_argument(
+                "Provided `alphabet` should be of size `alphabet_size`.");
+
+        this->alphabet = alphabet;
+        std::transform(
+            alphabet.cbegin(), alphabet.cend(),
+            std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
+            [](const auto& element) -> std::pair<std::uint32_t, std::uint32_t> {
+                return {element.second, element.first};
+            });
+
+        if (known_words.has_value()) {
+            this->inverse_known_words.emplace();
+            std::transform(
+                known_words->cbegin(), known_words->cend(),
+                std::inserter(*this->inverse_known_words,
+                              this->inverse_known_words->end()),
+                [](const auto& element) -> std::pair<DocType, std::uint32_t> {
+                    return {element.second, element.first};
+                });
+        }
+
+        SplitPipelineConfig<DocType, TokenType> split_pipeline_config = {
+            .known_words = known_words,
+            .break_tokens = break_tokens,
+            .regex_pattern = regex_pattern,
+            .stop_tokens = stop_tokens,
+        };
+        if constexpr (!std::is_same_v<OptionalPatternType<TokenType>,
+                                      std::monostate>) {
+            split_pipeline_config.regex_pattern = regex_pattern;
+            this->regex_pattern = regex_pattern;
+        }
+
+        this->split_pipeline =
+            SplitPipeline<DocType, TokenType>(alphabet, split_pipeline_config);
+    }
+
+    UbpeBase(std::uint32_t n_tokens, std::uint32_t alphabet_size,
+             std::map<TokenType, std::uint32_t> alphabet,
+             SplitPipelineConfig<DocType, TokenType> split_pipeline_config)
         : n_tokens(n_tokens), alphabet_size(alphabet_size) {
         if (alphabet_size != alphabet.size())
             throw std::invalid_argument(
@@ -230,6 +308,28 @@ class UbpeBase {
             [](const auto& element) -> std::pair<std::uint32_t, std::uint32_t> {
                 return {element.second, element.first};
             });
+
+        this->split_pipeline =
+            SplitPipeline<DocType, TokenType>(alphabet, split_pipeline_config);
+
+        this->break_tokens = this->split_pipeline.break_tokens;
+        if constexpr (!std::is_same_v<OptionalPatternType<TokenType>,
+                                      std::monostate>) {
+            this->regex_pattern = split_pipeline_config.regex_pattern;
+        }
+        this->stop_tokens = this->split_pipeline.stop_tokens;
+
+        this->known_words = this->split_pipeline.known_words;
+        if (this->known_words.has_value()) {
+            this->inverse_known_words.emplace();
+            std::transform(
+                this->known_words->cbegin(), this->known_words->cend(),
+                std::inserter(*this->inverse_known_words,
+                              this->inverse_known_words->end()),
+                [](const auto& element) -> std::pair<DocType, std::uint32_t> {
+                    return {element.second, element.first};
+                });
+        }
     }
 
     UbpeBase(std::uint32_t n_tokens, std::uint32_t alphabet_size,
@@ -239,14 +339,23 @@ class UbpeBase {
                  tokens_forward_mapper,
              std::map<std::uint32_t, std::vector<std::uint32_t>>
                  tokens_backward_mapper,
-             std::map<std::uint32_t, double> tokens_weights)
+             std::map<std::uint32_t, double> tokens_weights,
+             std::optional<std::map<DocType, std::uint32_t>> known_words =
+                 std::nullopt,
+             std::optional<std::set<TokenType>> break_tokens = std::nullopt,
+             std::optional<std::variant<std::string, std::wstring>>
+                 regex_pattern = std::nullopt,
+             std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
         : n_tokens(n_tokens),
           alphabet_size(alphabet_size),
           alphabet(alphabet),
           inverse_alphabet(inverse_alphabet),
           tokens_forward_mapper(tokens_forward_mapper),
           tokens_backward_mapper(tokens_backward_mapper),
-          tokens_weights(tokens_weights) {
+          tokens_weights(tokens_weights),
+          known_words(known_words),
+          break_tokens(break_tokens),
+          stop_tokens(stop_tokens) {
         if (alphabet_size != alphabet.size())
             throw std::invalid_argument(
                 "Provided `alphabet` should be of size `alphabet_size`.");
@@ -254,6 +363,32 @@ class UbpeBase {
             throw std::invalid_argument(
                 "`alphabet` and `inverse_alphabet` should be of the same "
                 "size.");
+
+        if (known_words.has_value()) {
+            this->inverse_known_words.emplace();
+            std::transform(
+                known_words->cbegin(), known_words->cend(),
+                std::inserter(*this->inverse_known_words,
+                              this->inverse_known_words->end()),
+                [](const auto& element) -> std::pair<DocType, std::uint32_t> {
+                    return {element.second, element.first};
+                });
+        }
+
+        SplitPipelineConfig<DocType, TokenType> split_pipeline_config = {
+            .known_words = known_words,
+            .break_tokens = break_tokens,
+            .regex_pattern = regex_pattern,
+            .stop_tokens = stop_tokens,
+        };
+        if constexpr (!std::is_same_v<OptionalPatternType<TokenType>,
+                                      std::monostate>) {
+            split_pipeline_config.regex_pattern = regex_pattern;
+            this->regex_pattern = regex_pattern;
+        }
+
+        this->split_pipeline =
+            SplitPipeline<DocType, TokenType>(alphabet, split_pipeline_config);
     }
 
     UbpeBase(const UbpeBase&) = default;
@@ -301,7 +436,8 @@ class UbpeBase {
     /// @param rearrange_tokens If tokens should be rearranged to make tokens
     /// with smaller numbers be more valueable.
     /// @param quiet Whether to suppress logging.
-    virtual void fit(const std::vector<DocType>& docs, std::uint32_t n_candidates = 50,
+    virtual void fit(const std::vector<DocType>& docs,
+                     std::uint32_t n_candidates = 50,
                      bool rearrange_tokens = true, bool quiet = false) = 0;
 
     /// @brief Encode `document` with fitted tokenizer.

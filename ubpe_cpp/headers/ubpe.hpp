@@ -84,8 +84,22 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size) {}
 
     Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size,
-         std::map<TokenType, std::uint32_t> alphabet)
-        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet) {}
+         std::map<TokenType, std::uint32_t> alphabet,
+         std::optional<std::map<DocType, std::uint32_t>> known_words =
+             std::nullopt,
+         std::optional<std::set<TokenType>> break_tokens = std::nullopt,
+         std::optional<std::variant<std::string, std::wstring>> regex_pattern =
+             std::nullopt,
+         std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
+                                       known_words, break_tokens, regex_pattern,
+                                       stop_tokens) {}
+
+    Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size,
+         std::map<TokenType, std::uint32_t> alphabet,
+         SplitPipelineConfig<DocType, TokenType> split_pipeline_config)
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
+                                       split_pipeline_config) {}
 
     Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size,
          std::map<TokenType, std::uint32_t> alphabet,
@@ -94,10 +108,17 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
              tokens_forward_mapper,
          std::map<std::uint32_t, std::vector<std::uint32_t>>
              tokens_backward_mapper,
-         std::map<std::uint32_t, double> tokens_weights)
-        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
-                                       inverse_alphabet, tokens_forward_mapper,
-                                       tokens_backward_mapper, tokens_weights) {
+         std::map<std::uint32_t, double> tokens_weights,
+         std::optional<std::map<DocType, std::uint32_t>> known_words =
+             std::nullopt,
+         std::optional<std::set<TokenType>> break_tokens = std::nullopt,
+         std::optional<std::variant<std::string, std::wstring>> regex_pattern =
+             std::nullopt,
+         std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
+        : UbpeBase<DocType, TokenType>(
+              n_tokens, alphabet_size, alphabet, inverse_alphabet,
+              tokens_forward_mapper, tokens_backward_mapper, tokens_weights,
+              known_words, break_tokens, regex_pattern, stop_tokens) {
         // cache lookup of tokens for encoding
         for (const auto& [key, value] : inverse_alphabet) {
             auto _ = this->lookup +
