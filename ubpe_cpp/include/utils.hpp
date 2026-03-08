@@ -138,7 +138,10 @@ class EnumWrapper {
     /// Construct a wrapper from the integer value.
     ///
     /// Note: usefull for integration with Cython.
-    constexpr EnumWrapper(UnderlyingType value) : value_(value) {}
+    template <typename T>
+        requires std::convertible_to<T, UnderlyingType>
+    constexpr EnumWrapper(T value)
+        : value_(static_cast<UnderlyingType>(value)) {}
 
     constexpr EnumWrapper& operator|=(const EnumWrapper& other) {
         this->value_ |= other.value_;
@@ -171,8 +174,11 @@ class EnumWrapper {
     }
 
     /// Check including of an instance of underlying integer type.
-    constexpr bool has(UnderlyingType value) const {
-        return (*this & EnumWrapper(value)).value_ != 0;
+    template <typename T>
+        requires std::convertible_to<T, UnderlyingType>
+    constexpr bool has(T value) const {
+        return (*this & EnumWrapper(static_cast<UnderlyingType>(value)))
+                   .value_ != 0;
     }
 
     /// Check including of an instance of a type derived from this wrapper.
