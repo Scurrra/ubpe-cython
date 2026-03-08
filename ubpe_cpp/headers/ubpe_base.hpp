@@ -39,7 +39,7 @@ class UbpeBase {
     std::optional<std::set<TokenType>> break_tokens{};
     [[no_unique_address]] OptionalPatternType<TokenType> regex_pattern{};
     std::optional<std::set<TokenType>> stop_tokens{};
-    SplitPipeline<DocType, TokenType> split_pipeline;
+    SplitPipeline<DocType, TokenType> split_pipeline{};
 
     /// @brief Function that rearranges found tokens according to their weights
     /// and trims dictionary of the tokenizer to be not greater than
@@ -213,6 +213,18 @@ class UbpeBase {
     /// @param tokens Vector of base tokens.
     /// @return Document, i.e. data of type `DocType`.
     DocType _vec_to_doc(const std::vector<std::uint32_t>& tokens) const {
+        if (this->inverse_known_words.has_value()) {
+            DocType doc;
+            for (const auto& token : tokens) {
+                if (this->inverse_known_words->contains(token)) {
+                    const auto& word = this->inverse_known_words->at(token);
+                    doc.insert(doc.end(), word.cbegin(), word.cend());
+                } else {
+                    doc.emplace_back(this->inverse_alphabet.at(token));
+                }
+            }
+            return doc;
+        }
         DocType doc;
         doc.reserve(tokens.size());
         std::transform(tokens.cbegin(), tokens.cend(), std::back_inserter(doc),
@@ -221,6 +233,10 @@ class UbpeBase {
                        });
         return doc;
     }
+
+    virtual std::vector<std::pair<std::vector<std::uint32_t>, double>>
+    encode_word(std::vector<std::uint32_t> word,
+                std::uint8_t top_n = 1) const = 0;
 
    public:
     UbpeBase(std::uint32_t n_tokens, std::uint32_t alphabet_size)
@@ -272,21 +288,25 @@ class UbpeBase {
                 known_words->cbegin(), known_words->cend(),
                 std::inserter(*this->inverse_known_words,
                               this->inverse_known_words->end()),
-                [](const auto& element) -> std::pair<DocType, std::uint32_t> {
+                [](const auto& element) -> std::pair<std::uint32_t, DocType> {
                     return {element.second, element.first};
                 });
         }
 
-        SplitPipelineConfig<DocType, TokenType> split_pipeline_config = {
-            .known_words = known_words,
-            .break_tokens = break_tokens,
-            .regex_pattern = regex_pattern,
-            .stop_tokens = stop_tokens,
-        };
+        SplitPipelineConfig<DocType, TokenType> split_pipeline_config{};
+        if (known_words.has_value()) {
+            split_pipeline_config.known_words = known_words.value();
+        }
+        if (break_tokens.has_value()) {
+            split_pipeline_config.break_tokens = break_tokens.value();
+        }
         if constexpr (!std::is_same_v<OptionalPatternType<TokenType>,
                                       std::monostate>) {
             split_pipeline_config.regex_pattern = regex_pattern;
             this->regex_pattern = regex_pattern;
+        }
+        if (stop_tokens.has_value()) {
+            split_pipeline_config.stop_tokens = stop_tokens.value();
         }
 
         this->split_pipeline =
@@ -312,14 +332,14 @@ class UbpeBase {
         this->split_pipeline =
             SplitPipeline<DocType, TokenType>(alphabet, split_pipeline_config);
 
-        this->break_tokens = this->split_pipeline.break_tokens;
+        this->break_tokens = this->split_pipeline.get_break_tokens();
         if constexpr (!std::is_same_v<OptionalPatternType<TokenType>,
                                       std::monostate>) {
             this->regex_pattern = split_pipeline_config.regex_pattern;
         }
-        this->stop_tokens = this->split_pipeline.stop_tokens;
+        this->stop_tokens = this->split_pipeline.get_stop_tokens();
 
-        this->known_words = this->split_pipeline.known_words;
+        this->known_words = this->split_pipeline.get_known_words();
         if (this->known_words.has_value()) {
             this->inverse_known_words.emplace();
             std::transform(
@@ -370,21 +390,25 @@ class UbpeBase {
                 known_words->cbegin(), known_words->cend(),
                 std::inserter(*this->inverse_known_words,
                               this->inverse_known_words->end()),
-                [](const auto& element) -> std::pair<DocType, std::uint32_t> {
+                [](const auto& element) -> std::pair<std::uint32_t, DocType> {
                     return {element.second, element.first};
                 });
         }
 
-        SplitPipelineConfig<DocType, TokenType> split_pipeline_config = {
-            .known_words = known_words,
-            .break_tokens = break_tokens,
-            .regex_pattern = regex_pattern,
-            .stop_tokens = stop_tokens,
-        };
+        SplitPipelineConfig<DocType, TokenType> split_pipeline_config{};
+        if (known_words.has_value()) {
+            split_pipeline_config.known_words = known_words.value();
+        }
+        if (break_tokens.has_value()) {
+            split_pipeline_config.break_tokens = break_tokens.value();
+        }
         if constexpr (!std::is_same_v<OptionalPatternType<TokenType>,
                                       std::monostate>) {
             split_pipeline_config.regex_pattern = regex_pattern;
             this->regex_pattern = regex_pattern;
+        }
+        if (stop_tokens.has_value()) {
+            split_pipeline_config.stop_tokens = stop_tokens.value();
         }
 
         this->split_pipeline =
@@ -430,23 +454,65 @@ class UbpeBase {
     }
 
     /// @brief Fit tokenizer with `corpus`.
-    /// @param docs Data to fit tokenizer with.
+    /// @param corpus Data to fit tokenizer with.
     /// @param n_candidates Number of most popular pairs of adjacent tokens to
     /// be substituted with new ones; ignored in `UbpeClassic`.
     /// @param rearrange_tokens If tokens should be rearranged to make tokens
     /// with smaller numbers be more valueable.
+    /// @param split_mode Split mode to use for corpus splitting.
     /// @param quiet Whether to suppress logging.
-    virtual void fit(const std::vector<DocType>& docs,
+    virtual void fit(const std::vector<DocType>& corpus,
                      std::uint32_t n_candidates = 50,
-                     bool rearrange_tokens = true, bool quiet = false) = 0;
+                     bool rearrange_tokens = true,
+                     SplitMode::value_type split_mode = SplitMode::FULL,
+                     bool quiet = false) = 0;
+
+    /// @brief Fit tokenizer with `corpus`.
+    /// @param corpus Data to fit tokenizer with.
+    /// @param n_candidates Number of most popular pairs of adjacent tokens to
+    /// be substituted with new ones; ignored in `UbpeClassic`.
+    /// @param rearrange_tokens If tokens should be rearranged to make tokens
+    /// with smaller numbers be more valueable.
+    /// @param split_mode Split mode to use for corpus splitting.
+    /// @param quiet Whether to suppress logging.
+    ///
+    /// Note: `corpus` should be a vector of vectors of token indices, i.e.
+    /// already splitted and tokenized.
+    virtual void fit(std::vector<std::vector<std::uint32_t>> corpus,
+                     std::uint32_t n_candidates = 50,
+                     bool rearrange_tokens = true,
+                     SplitMode::value_type split_mode = SplitMode::FULL,
+                     bool quiet = false) = 0;
+
+    /// @brief Encode `document` with fitted tokenizer.
+    /// @param doc Sequence of basic tokens to encode.
+    /// @param top_n How many candidate ecoding to return; ignored in
+    /// `UbpeClassic`.
+    /// @param split_mode How to split the document into words.
+    /// @return List of encoded documents with weights.
+    virtual std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const DocType& doc, std::uint8_t top_n = 1,
+        SplitMode::value_type split_mode = SplitMode::FULL) const = 0;
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param doc Sequence of basic tokens to encode.
     /// @param top_n How many candidate ecoding to return; ignored in
     /// `UbpeClassic`.
     /// @return List of encoded documents with weights.
-    virtual std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
-        const DocType& doc, uint8_t top_n = 1) const = 0;
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const DocType& doc, std::uint8_t top_n = 1) const {
+        return encode(doc, top_n, SplitMode::FULL);
+    }
+
+    /// @brief Encode `document` with fitted tokenizer.
+    /// @param doc Sequence of basic tokens to encode.
+    /// @param split_mode How to split the document into words.
+    /// @return List of encoded documents with weights.
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const DocType& doc,
+        SplitMode::value_type split_mode = SplitMode::FULL) const {
+        return encode(doc, 1, split_mode);
+    }
 
     /// @brief Decode a vector of `tokens` with the fitted tokenizer.
     /// @param tokens An encoded sequence of tokens to decode.
