@@ -314,9 +314,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
         std::vector<std::vector<std::vector<std::uint32_t>>> _corpus;
         _corpus.reserve(corpus.size());
-        std::transform(
-            corpus.cbegin(), corpus.cend(), std::back_inserter(_corpus),
-            [this](const auto& doc) { return this->split_pipeline(doc); });
+        std::transform(corpus.cbegin(), corpus.cend(),
+                       std::back_inserter(_corpus),
+                       [this, &split_mode](const auto& doc) {
+                           return this->split_pipeline(doc, split_mode, false);
+                       });
         logger.info("Loaded the corpus");
 
         auto max_token = this->alphabet_size - 1;
@@ -443,7 +445,6 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
     void fit(std::vector<std::vector<std::uint32_t>> corpus,
              std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
-             SplitMode::value_type split_mode = SplitMode::FULL,
              bool quiet = false) override {
         if (n_candidates == 0)
             throw std::logic_error("`n_candidates` should not be 0");
@@ -613,20 +614,117 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             {{}, 0.0}};
 
         // iterate backwards
-        for (std::int16_t i = parts.size() - 1; i >= 0; i--) {
-            if (parts[i].size() == 1) {
-                auto ti = static_cast<std::size_t>(i);
+        for (std::int64_t i = static_cast<std::int64_t>(parts.size() - 1);
+             i >= 0; i--) {
+            auto si = static_cast<std::size_t>(i);
+            if (parts[si].size() == 1) {
                 std::vector<std::pair<std::vector<std::uint32_t>, double>>
-                    new_tails(tails.size(), {parts[i], 0.0});
+                    new_tails(tails.size(), {parts[si], 0.0});
                 for (std::size_t j = 0; j < tails.size(); j++) {
                     new_tails[j].first.insert(new_tails[j].first.end(),
-                                              tails[ti].first.begin(),
-                                              tails[ti].first.end());
+                                              tails[si].first.begin(),
+                                              tails[si].first.end());
                     new_tails[j].second += tails[j].second;
                 }
                 tails = new_tails;
             } else {
-                auto candidates = this->encode_word(parts[i], top_n);
+                auto candidates = this->encode_word(parts[si], top_n);
+                std::size_t ti = 0, ci = 0;
+
+                std::vector<std::pair<std::vector<std::uint32_t>, double>>
+                    new_tails;
+
+                while (ci < candidates.size() && ti < tails.size() &&
+                       new_tails.size() < top_n) {
+                    // add new candidate
+                    new_tails.emplace_back(candidates[ci]);
+                    new_tails.back().first.insert(new_tails.back().first.end(),
+                                                  tails[ti].first.begin(),
+                                                  tails[ti].first.end());
+                    new_tails.back().second += tails[ti].second;
+
+                    if (new_tails.size() == top_n) break;
+
+                    if (ci == candidates.size() - 1 and ti == tails.size() - 1)
+                        break;
+
+                    if (ci == candidates.size() - 1 && ti < tails.size() - 1) {
+                        ti++;
+                    } else if (ti == tails.size() - 1 &&
+                               ci < candidates.size() - 1) {
+                        ci++;
+                    } else {
+                        if (tails[ti + 1].second + candidates[ci].second >
+                                tails[ti].second + candidates[ci + 1].second ||
+                            (tails[ti + 1].second + candidates[ci].second ==
+                                 tails[ti].second + candidates[ci + 1].second &&
+                             tails[ti + 1].first.size() +
+                                     candidates[ci].first.size() <
+                                 tails[ti].first.size() +
+                                     candidates[ci + 1].first.size())) {
+                            ti++;
+                        } else {
+                            ci++;
+                        }
+                    }
+                }
+                tails = new_tails;
+            }
+        }
+
+        return tails;
+    }
+
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const std::vector<std::vector<std::uint32_t>>& parts,
+        std::uint8_t top_n = 1) const override {
+        if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer was not fitted");
+
+        // handle empty sequence
+        if (parts.empty()) return {{{}, 0.0}};
+        if (parts.size() == 1) return {this->encode_word(parts[0])[0]};
+
+        if (top_n == 1) {
+            std::vector<std::uint32_t> result;
+            double weight = 0.0;
+            for (const auto& word : parts) {
+                if (word.size() == 1) {
+                    result.emplace_back(word[0]);
+                } else {
+                    auto [encoded_word, word_weight] =
+                        this->encode_word(word)[0];
+                    result.insert(result.end(), encoded_word.begin(),
+                                  encoded_word.end());
+                    weight += word_weight;
+                }
+            }
+
+            return {{result, weight}};
+        }
+
+        // general case
+        std::vector<std::pair<std::vector<std::uint32_t>, double>> tails = {
+            {{}, 0.0}};
+
+        // iterate backwards
+        for (std::int64_t i = static_cast<std::int64_t>(parts.size() - 1);
+             i >= 0; i--) {
+            auto si = static_cast<std::size_t>(i);
+            if (parts[si].size() == 1) {
+                std::vector<std::pair<std::vector<std::uint32_t>, double>>
+                    new_tails(tails.size(), {parts[si], 0.0});
+                for (std::size_t j = 0; j < tails.size(); j++) {
+                    new_tails[j].first.insert(new_tails[j].first.end(),
+                                              tails[si].first.begin(),
+                                              tails[si].first.end());
+                    new_tails[j].second += tails[j].second;
+                }
+                tails = new_tails;
+            } else {
+                auto candidates = this->encode_word(parts[si], top_n);
                 std::size_t ti = 0, ci = 0;
 
                 std::vector<std::pair<std::vector<std::uint32_t>, double>>

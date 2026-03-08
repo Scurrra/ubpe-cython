@@ -160,9 +160,11 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
         std::vector<std::vector<std::vector<std::uint32_t>>> _corpus;
         _corpus.reserve(corpus.size());
-        std::transform(
-            corpus.cbegin(), corpus.cend(), std::back_inserter(_corpus),
-            [this](const auto& doc) { return this->split_pipeline(doc); });
+        std::transform(corpus.cbegin(), corpus.cend(),
+                       std::back_inserter(_corpus),
+                       [this, &split_mode](const auto& doc) {
+                           return this->split_pipeline(doc, split_mode, false);
+                       });
         logger.info("Loaded the corpus");
 
         auto max_token = this->alphabet_size - 1;
@@ -267,7 +269,6 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
     void fit(std::vector<std::vector<std::uint32_t>> corpus,
              std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
-             SplitMode::value_type split_mode = SplitMode::FULL,
              bool quiet = false) override {
         if (n_candidates == 0)
             throw std::logic_error("`n_candidates` should not be 0");
@@ -389,6 +390,34 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
         if (doc.size() == 0) return {};
 
         auto parts = this->split_pipeline(doc, split_mode);
+        if (parts.empty()) return {{{}, 0.0}};
+        if (parts.size() == 1) return {this->encode_word(parts[0])[0]};
+
+        std::vector<std::uint32_t> result;
+        double weight = 0.0;
+        for (const auto& word : parts) {
+            if (word.size() == 1) {
+                result.emplace_back(word[0]);
+            } else {
+                auto [encoded_word, word_weight] = this->encode_word(word)[0];
+                result.insert(result.end(), encoded_word.begin(),
+                              encoded_word.end());
+                weight += word_weight;
+            }
+        }
+
+        return {{result, weight}};
+    }
+
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const std::vector<std::vector<std::uint32_t>>& parts,
+        std::uint8_t top_n = 1) const override {
+        if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer was not fitted");
+
+        // handle empty sequence
         if (parts.empty()) return {{{}, 0.0}};
         if (parts.size() == 1) return {this->encode_word(parts[0])[0]};
 

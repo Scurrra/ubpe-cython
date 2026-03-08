@@ -473,16 +473,13 @@ class UbpeBase {
     /// be substituted with new ones; ignored in `UbpeClassic`.
     /// @param rearrange_tokens If tokens should be rearranged to make tokens
     /// with smaller numbers be more valueable.
-    /// @param split_mode Split mode to use for corpus splitting.
     /// @param quiet Whether to suppress logging.
     ///
-    /// Note: `corpus` should be a vector of vectors of token indices, i.e.
-    /// already splitted and tokenized.
+    /// Note: Each document in `corpus` should be a vector of vectors of token
+    /// indices, i.e. already splitted and tokenized.
     virtual void fit(std::vector<std::vector<std::uint32_t>> corpus,
                      std::uint32_t n_candidates = 50,
-                     bool rearrange_tokens = true,
-                     SplitMode::value_type split_mode = SplitMode::FULL,
-                     bool quiet = false) = 0;
+                     bool rearrange_tokens = true, bool quiet = false) = 0;
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param doc Sequence of basic tokens to encode.
@@ -493,6 +490,18 @@ class UbpeBase {
     virtual std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
         const DocType& doc, std::uint8_t top_n = 1,
         SplitMode::value_type split_mode = SplitMode::FULL) const = 0;
+
+    /// @brief Encode `document` with fitted tokenizer.
+    /// @param parts Vector of vectors of basic tokens to encode.
+    /// @param top_n How many candidate ecoding to return; ignored in
+    /// `UbpeClassic`.
+    /// @return List of encoded documents with weights.
+    ///
+    /// Note: `doc` should be a vector of vectors of token indices, i.e. already
+    /// splitted and tokenized.
+    virtual std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const std::vector<std::vector<std::uint32_t>>& parts,
+        std::uint8_t top_n = 1) const = 0;
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param doc Sequence of basic tokens to encode.
