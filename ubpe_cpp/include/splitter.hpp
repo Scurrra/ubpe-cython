@@ -103,16 +103,16 @@ struct SplitPipelineConfig {
 template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class SplitPipeline {
    private:
+    std::map<TokenType, std::uint32_t> alphabet;
+    std::optional<std::map<DocType, std::uint32_t>> known_words{};
+    std::optional<std::unordered_set<TokenType>> break_tokens{};
+    [[no_unique_address]] OptionalPatternType<TokenType> regex_pattern{};
+    std::optional<std::unordered_set<TokenType>> stop_tokens{};
+
     [[no_unique_address]] OptionalRegexType<TokenType> regex{};
     std::optional<SSSTree<DocType, std::uint32_t>> kw_ssstree{};
 
    public:
-    const std::map<TokenType, std::uint32_t> alphabet;
-    const std::optional<std::map<DocType, std::uint32_t>> known_words{};
-    const std::optional<std::unordered_set<TokenType>> break_tokens{};
-    [[no_unique_address]] const OptionalPatternType<TokenType> regex_pattern{};
-    const std::optional<std::unordered_set<TokenType>> stop_tokens{};
-
     /// @brief Constructor for the SplitPipeline class.
     /// @param alphabet A map representing the alphabet.
     /// @param config Configuration for the pipeline.
@@ -269,6 +269,7 @@ class SplitPipeline {
         if (this->stop_tokens.has_value() && this->stop_tokens->empty())
             this->stop_tokens = std::nullopt;
     }
+    SplitPipeline() = default;
     SplitPipeline(const SplitPipeline&) = default;
     SplitPipeline(SplitPipeline&&) = default;
     SplitPipeline& operator=(const SplitPipeline&) = default;
@@ -282,7 +283,7 @@ class SplitPipeline {
     /// @return A vector of vectors of token indices.
     std::vector<std::vector<std::uint32_t>> operator()(
         const DocType& doc, SplitMode::value_type mode = SplitMode::FULL,
-        bool leave_separators = true) {
+        bool leave_separators = true) const {
         // if the `doc` should and can be splitted into parts by known words it
         // will be splitted into parts by known words, each known word will be
         // represented as a vector of a single element --- token number of the
@@ -294,7 +295,7 @@ class SplitPipeline {
             // search for a known word, split the part before the word and
             // append the token of the word itself
             auto part_begin = doc.cbegin();
-            for (auto si = 0; si < doc.size(); si++) {
+            for (std::size_t si = 0; si < doc.size(); si++) {
                 // vector of pairs, where
                 // .first -- length of the known word
                 // .second -- the token assigned to this word
@@ -360,6 +361,34 @@ class SplitPipeline {
         return parts;
     }
 
+    /// @brief Get the known words map.
+    std::optional<std::map<DocType, std::uint32_t>> get_known_words() const {
+        return known_words;
+    }
+
+    /// @brief Get the break tokens set.
+    std::optional<std::unordered_set<TokenType>> get_break_tokens() const {
+        return break_tokens;
+    }
+
+    /// @brief Get the stop tokens set.
+    std::optional<std::unordered_set<TokenType>> get_stop_tokens() const {
+        return stop_tokens;
+    }
+
+    /// @brief Get the keyword SSSTree.
+    std::optional<SSSTree<DocType, std::uint32_t>> get_kw_ssstree() const {
+        return kw_ssstree;
+    }
+
+    /// @brief Get the regex pattern.
+    OptionalPatternType<TokenType> get_regex_pattern() const {
+        return regex_pattern;
+    }
+
+    /// @brief Get the regex.
+    OptionalRegexType<TokenType> get_regex() const { return regex; }
+
    private:
     /// @brief Split a part of a document by tokens.
     static std::vector<DocType> split_part_by_tokens(
@@ -382,7 +411,7 @@ class SplitPipeline {
     }
 
     std::vector<DocType> split_part_by_break_tokens(
-        const DocType& part, bool leave_separators = true) {
+        const DocType& part, bool leave_separators = true) const {
         if (this->break_tokens.has_value())
             return this->split_part_by_tokens(part, this->break_tokens.value(),
                                               leave_separators);
@@ -390,14 +419,14 @@ class SplitPipeline {
     }
 
     std::vector<DocType> split_part_by_stop_tokens(
-        const DocType& part, bool leave_separators = true) {
+        const DocType& part, bool leave_separators = true) const {
         if (this->stop_tokens.has_value())
             return this->split_part_by_tokens(part, this->stop_tokens.value(),
                                               leave_separators);
         return {part};
     }
 
-    std::vector<DocType> split_part_by_regex(const DocType& part) {
+    std::vector<DocType> split_part_by_regex(const DocType& part) const {
         if constexpr ((std::is_same_v<TokenType, char> ||
                        std::is_same_v<TokenType, wchar_t>) &&
                       std::is_same_v<DocType, std::basic_string<TokenType>>) {
@@ -416,7 +445,7 @@ class SplitPipeline {
 
     std::vector<DocType> split_part(
         const DocType& part, SplitMode::value_type mode = SplitMode::FULL,
-        bool leave_separators = true) {
+        bool leave_separators = true) const {
         std::vector<DocType> parts = {part};
 
         if (mode.has(SplitMode::BREAK_TOKENS)) {
