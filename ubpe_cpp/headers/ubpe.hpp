@@ -587,6 +587,8 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         if (doc.size() == 0) return {};
 
         auto parts = this->split_pipeline(doc, split_mode);
+        if (parts.empty()) return {{{}, 0.0}};
+        if (parts.size() == 1) return {this->encode_word(parts[0])[0]};
 
         if (top_n == 1) {
             std::vector<std::uint32_t> result;
