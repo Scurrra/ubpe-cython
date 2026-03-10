@@ -577,8 +577,8 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
     using UbpeBase<DocType, TokenType>::encode;
     std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
-        const DocType& doc, std::uint8_t top_n = 1,
-        SplitMode::value_type split_mode = SplitMode::FULL) const override {
+        const DocType& doc, std::uint8_t top_n,
+        SplitMode::value_type split_mode) const override {
         if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)

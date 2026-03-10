@@ -488,8 +488,8 @@ class UbpeBase {
     /// @param split_mode How to split the document into words.
     /// @return List of encoded documents with weights.
     virtual std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
-        const DocType& doc, std::uint8_t top_n = 1,
-        SplitMode::value_type split_mode = SplitMode::FULL) const = 0;
+        const DocType& doc, std::uint8_t top_n,
+        SplitMode::value_type split_mode) const = 0;
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param parts Vector of vectors of basic tokens to encode.
@@ -509,7 +509,7 @@ class UbpeBase {
     /// `UbpeClassic`.
     /// @return List of encoded documents with weights.
     std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
-        const DocType& doc, std::uint8_t top_n = 1) const {
+        const DocType& doc, std::uint8_t top_n) const {
         return encode(doc, top_n, SplitMode::FULL);
     }
 
@@ -518,9 +518,16 @@ class UbpeBase {
     /// @param split_mode How to split the document into words.
     /// @return List of encoded documents with weights.
     std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
-        const DocType& doc,
-        SplitMode::value_type split_mode = SplitMode::FULL) const {
+        const DocType& doc, SplitMode::value_type split_mode) const {
         return encode(doc, 1, split_mode);
+    }
+
+    /// @brief Encode `document` with fitted tokenizer.
+    /// @param doc Sequence of basic tokens to encode.
+    /// @return List of encoded documents with weights.
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const DocType& doc) const {
+        return encode(doc, 1, SplitMode::FULL);
     }
 
     /// @brief Decode a vector of `tokens` with the fitted tokenizer.
