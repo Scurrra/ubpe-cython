@@ -119,8 +119,14 @@ class SplitPipeline {
     SplitPipeline(const std::map<TokenType, std::uint32_t>& alphabet,
                   SplitPipelineConfig<DocType, TokenType> config = {})
         : alphabet(alphabet) {
-        std::uint32_t max_token =
-            static_cast<std::uint32_t>(this->alphabet.size());
+        // Check that the alphabet contains sequential tokens
+        std::uint32_t max_token = 0;
+        for (const auto& [_, token_id] : this->alphabet) {
+            if (token_id != max_token)
+                throw std::runtime_error(
+                    "alphabet contains non-sequential tokens");
+            max_token++;
+        }
 
         std::unordered_set<TokenType> tokens;
         std::transform(this->alphabet.cbegin(), this->alphabet.cend(),
@@ -167,6 +173,15 @@ class SplitPipeline {
             this->known_words = std::nullopt;
 
         if (this->known_words.has_value()) {
+            // Check that known words are sequential right after alphabet tokens
+            for (const auto& [_, token_id] : this->known_words.value()) {
+                if (token_id != max_token)
+                    throw std::logic_error(
+                        "Tokens of `known_words` must be sequential right "
+                        "after alphabet tokens.");
+                max_token++;
+            }
+
             this->kw_ssstree.emplace();
             for (const auto& word : this->known_words.value()) {
                 auto _ = (*this->kw_ssstree) + word;
