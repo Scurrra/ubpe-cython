@@ -24,7 +24,6 @@ template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class UbpeBase {
    protected:
     std::uint32_t n_tokens;
-    std::uint32_t alphabet_size;
 
     std::map<TokenType, std::uint32_t> alphabet;
     std::map<std::uint32_t, TokenType> inverse_alphabet;
@@ -44,7 +43,7 @@ class UbpeBase {
     /// @brief Function that rearranges found tokens according to their weights
     /// and trims dictionary of the tokenizer to be not greater than
     /// `this.n_tokens`.
-    void _rearrange_tokens_by_weight() {
+    void _rearrange_tokens_by_weight(bool is_classic) {
         if (this->tokens_backward_mapper.size() == 0 ||
             this->tokens_weights.size() == 0)
             throw std::logic_error("Can not rearrange non-fitted tokenizer");
@@ -62,28 +61,44 @@ class UbpeBase {
                          });
 
         // min number of tokens to delete
+        auto min_token = static_cast<std::uint32_t>(
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0));
         auto to_delete_quantity =
-            this->tokens_weights.size() - this->n_tokens + this->alphabet_size;
+            this->tokens_weights.size() - this->n_tokens + min_token;
 
         // find tokens to delete
         std::set<std::uint32_t> to_delete;
-        // check tokens with smalest weights first
-        for (std::uint32_t i = 0; i < buf.size(); i++) {
-            // skip if `i` is already pended for deletion
-            if (to_delete.contains(i)) continue;
-            // if all values for deletion are already found
-            if (to_delete.size() >= to_delete_quantity) break;
-            // add token for deletion to the set
-            to_delete.insert(i);
-
-            // check some rare condition when found token is present in more
-            // valueable subsequence of tokens for substitution
-            for (std::uint32_t j = i + 1; j < buf.size(); j++) {
-                if (auto it = std::find(buf[j].second.cbegin(),
-                                        buf[j].second.cend(), buf[i].first);
-                    it != buf[j].second.end()) {
-                    to_delete.insert(j);
+        if (is_classic) {
+            // check tokens with smalest weights first
+            for (std::uint32_t i = 0; i < buf.size(); i++) {
+                // skip if `i` is already pended for deletion
+                if (to_delete.contains(i)) continue;
+                // if all values for deletion are already found
+                if (to_delete.size() >= to_delete_quantity) break;
+                std::vector<std::uint32_t> queue_to_delete = {i};
+                while (!queue_to_delete.empty()) {
+                    auto current = queue_to_delete.back();
+                    queue_to_delete.pop_back();
+                    to_delete.insert(current);
+                    for (std::uint32_t j = 0; j < buf.size(); j++) {
+                        // as this is classic mode, we check if token is one of
+                        // the elements in the pair, but pair in this case is a
+                        // vector of two elements
+                        if (buf[j].second[0] == buf[current].first ||
+                            buf[j].second[1] == buf[current].first) {
+                            queue_to_delete.push_back(j);
+                        }
+                    }
                 }
+            }
+        } else {
+            // check tokens with smalest weights first
+            for (std::uint32_t i = 0; i < buf.size(); i++) {
+                // if all values for deletion are already found
+                if (to_delete.size() >= to_delete_quantity) break;
+                // add token for deletion to the set
+                to_delete.insert(i);
             }
         }
 
@@ -101,27 +116,27 @@ class UbpeBase {
         // create mapping between old tokens and new tokens
         std::map<std::uint32_t, std::uint32_t> transformer;
         std::generate_n(
-            std::inserter(transformer, transformer.end()), this->alphabet_size,
-            [i = -1]() mutable -> std::pair<std::uint32_t, std::uint32_t> {
+            std::inserter(transformer, transformer.end()), min_token,
+            [i = static_cast<std::uint32_t>(
+                 -1)]() mutable -> std::pair<std::uint32_t, std::uint32_t> {
                 i++;
                 return {i, i};
             });
         std::generate_n(
             std::inserter(transformer, transformer.end()),
             buf.size() - to_delete.size(),
-            [&buf, &to_delete, this, i = static_cast<std::size_t>(-1),
-             offset = static_cast<std::size_t>(
-                 0)]() mutable -> std::pair<std::uint32_t, std::uint32_t> {
+            [&buf, &to_delete, i = static_cast<std::size_t>(-1),
+             offset = static_cast<std::size_t>(0),
+             &min_token]() mutable -> std::pair<std::uint32_t, std::uint32_t> {
                 i++;
                 while (to_delete.contains(buf[i + offset].first)) offset++;
-                return {buf[i + offset].first, this->alphabet_size + i};
+                return {buf[i + offset].first, min_token + i};
             });
 
         // drop weights for deleted tokens
         std::map<std::uint32_t, double> tokens_weights;
         std::transform(
-            std::next(transformer.cbegin(), this->alphabet_size),
-            transformer.cend(),
+            std::next(transformer.cbegin(), min_token), transformer.cend(),
             std::inserter(tokens_weights, tokens_weights.end()),
             [this](const auto& mapper) -> std::pair<std::uint32_t, double> {
                 return {mapper.second, this->tokens_weights[mapper.first]};
@@ -132,8 +147,7 @@ class UbpeBase {
         std::map<std::uint32_t, std::vector<std::uint32_t>>
             tokens_backward_mapper;
         std::transform(
-            std::next(transformer.cbegin(), this->alphabet_size),
-            transformer.cend(),
+            std::next(transformer.cbegin(), min_token), transformer.cend(),
             std::inserter(tokens_backward_mapper, tokens_backward_mapper.end()),
             [&, this](const auto& mapper)
                 -> std::pair<std::uint32_t, std::vector<std::uint32_t>> {
@@ -239,25 +253,7 @@ class UbpeBase {
                 std::uint8_t top_n = 1) const = 0;
 
    public:
-    UbpeBase(std::uint32_t n_tokens, std::uint32_t alphabet_size)
-        requires std::convertible_to<std::uint32_t, TokenType>
-        : n_tokens(n_tokens), alphabet_size(alphabet_size) {
-        std::generate_n(
-            std::inserter(this->alphabet, this->alphabet.end()), alphabet_size,
-            [i = -1]() mutable -> std::pair<TokenType, std::uint32_t> {
-                i++;
-                return {i, i};
-            });
-        std::generate_n(
-            std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
-            alphabet_size,
-            [i = -1]() mutable -> std::pair<std::uint32_t, TokenType> {
-                i++;
-                return {i, i};
-            });
-    }
-
-    UbpeBase(std::uint32_t n_tokens, std::uint32_t alphabet_size,
+    UbpeBase(std::uint32_t n_tokens,
              std::map<TokenType, std::uint32_t> alphabet,
              std::optional<std::map<DocType, std::uint32_t>> known_words =
                  std::nullopt,
@@ -266,15 +262,10 @@ class UbpeBase {
                  regex_pattern = std::nullopt,
              std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
         : n_tokens(n_tokens),
-          alphabet_size(alphabet_size),
+          alphabet(alphabet),
           known_words(known_words),
           break_tokens(break_tokens),
           stop_tokens(stop_tokens) {
-        if (alphabet_size != alphabet.size())
-            throw std::invalid_argument(
-                "Provided `alphabet` should be of size `alphabet_size`.");
-
-        this->alphabet = alphabet;
         std::transform(
             alphabet.cbegin(), alphabet.cend(),
             std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
@@ -312,16 +303,18 @@ class UbpeBase {
         this->split_pipeline =
             SplitPipeline<DocType, TokenType>(alphabet, split_pipeline_config);
     }
+    UbpeBase(std::uint32_t n_tokens,
+             std::map<TokenType, std::uint32_t> alphabet,
+             std::optional<std::map<DocType, std::uint32_t>> known_words,
+             std::optional<std::set<TokenType>> break_tokens,
+             std::optional<std::set<TokenType>> stop_tokens)
+        : UbpeBase(n_tokens, alphabet, known_words, break_tokens, std::nullopt,
+                   stop_tokens) {}
 
-    UbpeBase(std::uint32_t n_tokens, std::uint32_t alphabet_size,
+    UbpeBase(std::uint32_t n_tokens,
              std::map<TokenType, std::uint32_t> alphabet,
              SplitPipelineConfig<DocType, TokenType> split_pipeline_config)
-        : n_tokens(n_tokens), alphabet_size(alphabet_size) {
-        if (alphabet_size != alphabet.size())
-            throw std::invalid_argument(
-                "Provided `alphabet` should be of size `alphabet_size`.");
-
-        this->alphabet = alphabet;
+        : n_tokens(n_tokens), alphabet(alphabet) {
         std::transform(
             alphabet.cbegin(), alphabet.cend(),
             std::inserter(this->inverse_alphabet, this->inverse_alphabet.end()),
@@ -352,7 +345,7 @@ class UbpeBase {
         }
     }
 
-    UbpeBase(std::uint32_t n_tokens, std::uint32_t alphabet_size,
+    UbpeBase(std::uint32_t n_tokens,
              std::map<TokenType, std::uint32_t> alphabet,
              std::map<std::uint32_t, TokenType> inverse_alphabet,
              std::map<std::vector<std::uint32_t>, std::uint32_t>
@@ -367,7 +360,6 @@ class UbpeBase {
                  regex_pattern = std::nullopt,
              std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
         : n_tokens(n_tokens),
-          alphabet_size(alphabet_size),
           alphabet(alphabet),
           inverse_alphabet(inverse_alphabet),
           tokens_forward_mapper(tokens_forward_mapper),
@@ -376,9 +368,6 @@ class UbpeBase {
           known_words(known_words),
           break_tokens(break_tokens),
           stop_tokens(stop_tokens) {
-        if (alphabet_size != alphabet.size())
-            throw std::invalid_argument(
-                "Provided `alphabet` should be of size `alphabet_size`.");
         if (alphabet.size() != inverse_alphabet.size())
             throw std::invalid_argument(
                 "`alphabet` and `inverse_alphabet` should be of the same "
@@ -414,6 +403,20 @@ class UbpeBase {
         this->split_pipeline =
             SplitPipeline<DocType, TokenType>(alphabet, split_pipeline_config);
     }
+    UbpeBase(std::uint32_t n_tokens,
+             std::map<TokenType, std::uint32_t> alphabet,
+             std::map<std::uint32_t, TokenType> inverse_alphabet,
+             std::map<std::vector<std::uint32_t>, std::uint32_t>
+                 tokens_forward_mapper,
+             std::map<std::uint32_t, std::vector<std::uint32_t>>
+                 tokens_backward_mapper,
+             std::map<std::uint32_t, double> tokens_weights,
+             std::optional<std::map<DocType, std::uint32_t>> known_words,
+             std::optional<std::set<TokenType>> break_tokens,
+             std::optional<std::set<TokenType>> stop_tokens)
+        : UbpeBase(n_tokens, alphabet, inverse_alphabet, tokens_forward_mapper,
+                   tokens_backward_mapper, tokens_weights, known_words,
+                   break_tokens, std::nullopt, stop_tokens) {}
 
     UbpeBase(const UbpeBase&) = default;
     UbpeBase(UbpeBase&&) = default;
@@ -453,6 +456,50 @@ class UbpeBase {
         return this->inverse_alphabet;
     }
 
+    /// @brief Get known words mapping.
+    /// @return Known words mapping.
+    std::optional<std::map<DocType, std::uint32_t>> getKnownWords() const {
+        return this->known_words;
+    }
+
+    /// @brief Get inverse known words mapping.
+    /// @return Inverse known words mapping.
+    std::optional<std::map<std::uint32_t, DocType>> getInverseKnownWords()
+        const {
+        return this->inverse_known_words;
+    }
+
+    /// @brief Get break tokens.
+    /// @return Break tokens.
+    std::optional<std::set<TokenType>> getBreakTokens() const {
+        return this->break_tokens;
+    }
+
+    /// @brief Get regex pattern.
+    /// @return Regex pattern.
+    ///
+    /// Note: If the token type does not support regex patterns, this will
+    /// return `std::nullopt`.
+    OptionalPatternType<TokenType> getRegexPattern() const {
+        if constexpr (!std::is_same_v<OptionalPatternType<TokenType>,
+                                      std::monostate>) {
+            return this->regex_pattern;
+        }
+        return std::nullopt;
+    }
+
+    /// @brief Get stop tokens.
+    /// @return Stop tokens.
+    std::optional<std::set<TokenType>> getStopTokens() const {
+        return this->stop_tokens;
+    }
+
+    /// @brief Get split pipeline.
+    /// @return Split pipeline.
+    SplitPipeline<DocType, TokenType> getSplitPipeline() const {
+        return this->split_pipeline;
+    }
+
     /// @brief Fit tokenizer with `corpus`.
     /// @param corpus Data to fit tokenizer with.
     /// @param n_candidates Number of most popular pairs of adjacent tokens to
@@ -466,6 +513,12 @@ class UbpeBase {
                      bool rearrange_tokens = true,
                      SplitMode::value_type split_mode = SplitMode::FULL,
                      bool quiet = false) = 0;
+    void fit(const std::vector<DocType>& corpus,
+             std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
+             std::uint8_t split_mode = 0b1111, bool quiet = false) {
+        fit(corpus, n_candidates, rearrange_tokens,
+            SplitMode::value_type(split_mode), quiet);
+    }
 
     /// @brief Fit tokenizer with `corpus`.
     /// @param corpus Data to fit tokenizer with.
@@ -477,9 +530,10 @@ class UbpeBase {
     ///
     /// Note: Each document in `corpus` should be a vector of vectors of token
     /// indices, i.e. already splitted and tokenized.
-    virtual void fit(std::vector<std::vector<std::uint32_t>> corpus,
-                     std::uint32_t n_candidates = 50,
-                     bool rearrange_tokens = true, bool quiet = false) = 0;
+    virtual void fit(
+        std::vector<std::vector<std::vector<std::uint32_t>>> corpus,
+        std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
+        bool quiet = false) = 0;
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param doc Sequence of basic tokens to encode.
@@ -490,6 +544,10 @@ class UbpeBase {
     virtual std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
         const DocType& doc, std::uint8_t top_n,
         SplitMode::value_type split_mode) const = 0;
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const DocType& doc, std::uint8_t top_n, std::uint8_t split_mode) const {
+        return encode(doc, top_n, SplitMode::value_type(split_mode));
+    }
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param parts Vector of vectors of basic tokens to encode.
