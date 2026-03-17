@@ -246,29 +246,29 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
     }
 
    public:
-    Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size)
-        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size) {}
-
-    Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size,
-         std::map<TokenType, std::uint32_t> alphabet,
+    Ubpe(std::uint32_t n_tokens, std::map<TokenType, std::uint32_t> alphabet,
          std::optional<std::map<DocType, std::uint32_t>> known_words =
              std::nullopt,
          std::optional<std::set<TokenType>> break_tokens = std::nullopt,
          std::optional<std::variant<std::string, std::wstring>> regex_pattern =
              std::nullopt,
          std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
-        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
-                                       known_words, break_tokens, regex_pattern,
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet, known_words,
+                                       break_tokens, regex_pattern,
                                        stop_tokens) {}
+    Ubpe(std::uint32_t n_tokens, std::map<TokenType, std::uint32_t> alphabet,
+         std::optional<std::map<DocType, std::uint32_t>> known_words,
+         std::optional<std::set<TokenType>> break_tokens,
+         std::optional<std::set<TokenType>> stop_tokens)
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet, known_words,
+                                       break_tokens, stop_tokens) {}
 
-    Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size,
-         std::map<TokenType, std::uint32_t> alphabet,
+    Ubpe(std::uint32_t n_tokens, std::map<TokenType, std::uint32_t> alphabet,
          SplitPipelineConfig<DocType, TokenType> split_pipeline_config)
-        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet,
                                        split_pipeline_config) {}
 
-    Ubpe(std::uint32_t n_tokens, std::uint32_t alphabet_size,
-         std::map<TokenType, std::uint32_t> alphabet,
+    Ubpe(std::uint32_t n_tokens, std::map<TokenType, std::uint32_t> alphabet,
          std::map<std::uint32_t, TokenType> inverse_alphabet,
          std::map<std::vector<std::uint32_t>, std::uint32_t>
              tokens_forward_mapper,
@@ -282,9 +282,33 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
              std::nullopt,
          std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
         : UbpeBase<DocType, TokenType>(
-              n_tokens, alphabet_size, alphabet, inverse_alphabet,
-              tokens_forward_mapper, tokens_backward_mapper, tokens_weights,
-              known_words, break_tokens, regex_pattern, stop_tokens) {
+              n_tokens, alphabet, inverse_alphabet, tokens_forward_mapper,
+              tokens_backward_mapper, tokens_weights, known_words, break_tokens,
+              regex_pattern, stop_tokens) {
+        // cache lookup of tokens for encoding
+        for (const auto& [key, value] : inverse_alphabet) {
+            auto _ = this->lookup +
+                     std::make_pair(std::vector<std::uint32_t>{key}, value);
+        }
+        for (const auto& element : tokens_forward_mapper) {
+            auto _ = this->lookup + element;
+        }
+    }
+
+    Ubpe(std::uint32_t n_tokens, std::map<TokenType, std::uint32_t> alphabet,
+         std::map<std::uint32_t, TokenType> inverse_alphabet,
+         std::map<std::vector<std::uint32_t>, std::uint32_t>
+             tokens_forward_mapper,
+         std::map<std::uint32_t, std::vector<std::uint32_t>>
+             tokens_backward_mapper,
+         std::map<std::uint32_t, double> tokens_weights,
+         std::optional<std::map<DocType, std::uint32_t>> known_words,
+         std::optional<std::set<TokenType>> break_tokens,
+         std::optional<std::set<TokenType>> stop_tokens)
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet, inverse_alphabet,
+                                       tokens_forward_mapper,
+                                       tokens_backward_mapper, tokens_weights,
+                                       known_words, break_tokens, stop_tokens) {
         // cache lookup of tokens for encoding
         for (const auto& [key, value] : inverse_alphabet) {
             auto _ = this->lookup +
@@ -321,7 +345,12 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                        });
         logger.info("Loaded the corpus");
 
-        auto max_token = this->alphabet_size - 1;
+        auto max_token =
+            static_cast<std::uint32_t>(this->alphabet.size() +
+                                       (this->known_words.has_value()
+                                            ? this->known_words->size()
+                                            : 0)) -
+            1;
 
         logger.info("Starting token building");
         logger.progress(this->n_tokens, max_token + 1);
@@ -416,7 +445,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
         // rearrange fitted tokens
         if (rearrange_tokens) {
-            this->_rearrange_tokens_by_weight();
+            this->_rearrange_tokens_by_weight(false);
             logger.info("Rearranged artificial tokens: " +
                         std::to_string(this->tokens_backward_mapper.size()) +
                         " left");
@@ -443,7 +472,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         logger.info("Built the lookup tree");
     }
 
-    void fit(std::vector<std::vector<std::uint32_t>> corpus,
+    void fit(std::vector<std::vector<std::vector<std::uint32_t>>> corpus,
              std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
              bool quiet = false) override {
         if (n_candidates == 0)
@@ -453,7 +482,12 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             Logger({.scope = "Ubpe::fit", .quiet = quiet}, {.unit = "token"});
         logger.info("Starting fitting process on splitted corpus");
 
-        auto max_token = this->alphabet_size - 1;
+        auto max_token =
+            static_cast<std::uint32_t>(this->alphabet.size() +
+                                       (this->known_words.has_value()
+                                            ? this->known_words->size()
+                                            : 0)) -
+            1;
 
         logger.info("Starting token building");
         logger.progress(this->n_tokens, max_token + 1);
@@ -548,7 +582,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
         // rearrange fitted tokens
         if (rearrange_tokens) {
-            this->_rearrange_tokens_by_weight();
+            this->_rearrange_tokens_by_weight(false);
             logger.info("Rearranged artificial tokens: " +
                         std::to_string(this->tokens_backward_mapper.size()) +
                         " left");
