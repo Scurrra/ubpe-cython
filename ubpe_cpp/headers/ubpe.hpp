@@ -655,11 +655,13 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             auto si = static_cast<std::size_t>(i);
             if (parts[si].size() == 1) {
                 std::vector<std::pair<std::vector<std::uint32_t>, double>>
-                    new_tails(tails.size(), {parts[si], 0.0});
+                    new_tails(tails.size());
                 for (std::size_t j = 0; j < tails.size(); j++) {
-                    new_tails[j].first.insert(new_tails[j].first.end(),
-                                              tails[j].first.begin(),
-                                              tails[j].first.end());
+                    auto buf = parts[si];
+                    buf.reserve(tails[j].first.size() + 1);
+                    buf.insert(buf.end(), tails[j].first.begin(),
+                               tails[j].first.end());
+                    new_tails[j].first = std::move(buf);
                     new_tails[j].second += tails[j].second;
                 }
                 tails = std::move(new_tails);
@@ -673,11 +675,13 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                 while (ci < candidates.size() && ti < tails.size() &&
                        new_tails.size() < top_n) {
                     // add new candidate
-                    new_tails.emplace_back(candidates[ci]);
-                    new_tails.back().first.insert(new_tails.back().first.end(),
-                                                  tails[ti].first.begin(),
-                                                  tails[ti].first.end());
-                    new_tails.back().second += tails[ti].second;
+                    auto buf = candidates[ci];
+                    buf.first.reserve(buf.first.size() +
+                                      tails[ti].first.size());
+                    buf.first.insert(buf.first.end(), tails[ti].first.begin(),
+                                     tails[ti].first.end());
+                    buf.second += tails[ti].second;
+                    new_tails.emplace_back(std::move(buf));
 
                     if (new_tails.size() == top_n) break;
 
@@ -753,11 +757,13 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             auto si = static_cast<std::size_t>(i);
             if (parts[si].size() == 1) {
                 std::vector<std::pair<std::vector<std::uint32_t>, double>>
-                    new_tails(tails.size(), {parts[si], 0.0});
+                    new_tails(tails.size());
                 for (std::size_t j = 0; j < tails.size(); j++) {
-                    new_tails[j].first.insert(new_tails[j].first.end(),
-                                              tails[j].first.begin(),
-                                              tails[j].first.end());
+                    auto buf = parts[si];
+                    buf.reserve(tails[j].first.size() + 1);
+                    buf.insert(buf.end(), tails[j].first.begin(),
+                               tails[j].first.end());
+                    new_tails[j].first = std::move(buf);
                     new_tails[j].second += tails[j].second;
                 }
                 tails = std::move(new_tails);
@@ -771,11 +777,13 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                 while (ci < candidates.size() && ti < tails.size() &&
                        new_tails.size() < top_n) {
                     // add new candidate
-                    new_tails.emplace_back(candidates[ci]);
-                    new_tails.back().first.insert(new_tails.back().first.end(),
-                                                  tails[ti].first.begin(),
-                                                  tails[ti].first.end());
-                    new_tails.back().second += tails[ti].second;
+                    auto buf = candidates[ci];
+                    buf.first.reserve(buf.first.size() +
+                                      tails[ti].first.size());
+                    buf.first.insert(buf.first.end(), tails[ti].first.begin(),
+                                     tails[ti].first.end());
+                    buf.second += tails[ti].second;
+                    new_tails.emplace_back(std::move(buf));
 
                     if (new_tails.size() == top_n) break;
 
