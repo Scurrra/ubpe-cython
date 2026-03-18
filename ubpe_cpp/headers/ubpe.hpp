@@ -617,6 +617,8 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
             throw std::logic_error("Tokenizer was not fitted");
+        if (top_n < 1)
+            throw std::invalid_argument("top_n must be greater than 0");
 
         // handle empty sequence
         if (doc.size() == 0) return {};
@@ -656,11 +658,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                     new_tails(tails.size(), {parts[si], 0.0});
                 for (std::size_t j = 0; j < tails.size(); j++) {
                     new_tails[j].first.insert(new_tails[j].first.end(),
-                                              tails[si].first.begin(),
-                                              tails[si].first.end());
+                                              tails[j].first.begin(),
+                                              tails[j].first.end());
                     new_tails[j].second += tails[j].second;
                 }
-                tails = new_tails;
+                tails = std::move(new_tails);
             } else {
                 auto candidates = this->encode_word(parts[si], top_n);
                 std::size_t ti = 0, ci = 0;
@@ -702,7 +704,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                         }
                     }
                 }
-                tails = new_tails;
+                tails = std::move(new_tails);
             }
         }
 
@@ -716,6 +718,8 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
             throw std::logic_error("Tokenizer was not fitted");
+        if (top_n < 1)
+            throw std::invalid_argument("top_n must be greater than 0");
 
         // handle empty sequence
         if (parts.empty()) return {{{}, 0.0}};
@@ -752,11 +756,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                     new_tails(tails.size(), {parts[si], 0.0});
                 for (std::size_t j = 0; j < tails.size(); j++) {
                     new_tails[j].first.insert(new_tails[j].first.end(),
-                                              tails[si].first.begin(),
-                                              tails[si].first.end());
+                                              tails[j].first.begin(),
+                                              tails[j].first.end());
                     new_tails[j].second += tails[j].second;
                 }
-                tails = new_tails;
+                tails = std::move(new_tails);
             } else {
                 auto candidates = this->encode_word(parts[si], top_n);
                 std::size_t ti = 0, ci = 0;
@@ -798,7 +802,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                         }
                     }
                 }
-                tails = new_tails;
+                tails = std::move(new_tails);
             }
         }
 

@@ -421,6 +421,8 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
             throw std::logic_error("Tokenizer was not fitted");
+        if (top_n < 1)
+            throw std::invalid_argument("top_n must be greater than 0");
 
         // handle empty sequence
         if (doc.size() == 0) return {};
@@ -452,6 +454,8 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
             throw std::logic_error("Tokenizer was not fitted");
+        if (top_n < 1)
+            throw std::invalid_argument("top_n must be greater than 0");
 
         // handle empty sequence
         if (parts.empty()) return {{{}, 0.0}};
