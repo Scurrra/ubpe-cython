@@ -70,6 +70,9 @@ class TopElements {
         std::stable_sort(data.begin(), data.end(), std::greater<T>());
         return data;
     }
+
+    /// @brief Get raw heap elements.
+    std::vector<T> data() const { return this->heap.container(); }
 };
 
 }  // namespace ubpe

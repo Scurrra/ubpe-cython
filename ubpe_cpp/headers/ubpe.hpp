@@ -1,6 +1,7 @@
 #ifndef UBPE_CPP
 #define UBPE_CPP
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -231,9 +232,14 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                 }
 
                 // add top candidates to `tails`
-                tails[_start] = buf.sorted();
+                // no need to sort here
+                tails[_start] = buf.data();
             }
         }
+
+        // sort just here
+        std::stable_sort(tails[0].begin(), tails[0].end(),
+                         std::greater<EncodingCandidate>());
 
         // prepare result container
         std::vector<std::pair<std::vector<std::uint32_t>, double>> candidates;
