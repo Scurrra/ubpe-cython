@@ -457,6 +457,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                         " left");
         }
 
+        this->n_tokens =
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0) +
+            this->tokens_backward_mapper.size();
+
         std::transform(
             this->tokens_backward_mapper.cbegin(),
             this->tokens_backward_mapper.cend(),
@@ -594,6 +599,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
                         " left");
         }
 
+        this->n_tokens =
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0) +
+            this->tokens_backward_mapper.size();
+
         std::transform(
             this->tokens_backward_mapper.cbegin(),
             this->tokens_backward_mapper.cend(),
@@ -613,6 +623,35 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             auto _ = this->lookup + element;
         }
         logger.info("Built the lookup tree");
+    }
+
+    void rearrange_tokens(
+        std::optional<std::uint32_t> n_tokens = std::nullopt) override {
+        this->_rearrange_tokens_by_weight(false, n_tokens);
+
+        this->n_tokens =
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0) +
+            this->tokens_backward_mapper.size();
+
+        std::transform(
+            this->tokens_backward_mapper.cbegin(),
+            this->tokens_backward_mapper.cend(),
+            std::inserter(this->tokens_forward_mapper,
+                          this->tokens_forward_mapper.end()),
+            [](const auto& mapper)
+                -> std::pair<std::vector<std::uint32_t>, std::uint32_t> {
+                return {mapper.second, mapper.first};
+            });
+
+        // cache lookup of tokens for encoding
+        for (const auto& [key, value] : this->inverse_alphabet) {
+            auto _ = this->lookup +
+                     std::make_pair(std::vector<std::uint32_t>{key}, value);
+        }
+        for (const auto& element : this->tokens_forward_mapper) {
+            auto _ = this->lookup + element;
+        }
     }
 
     using UbpeBase<DocType, TokenType>::encode;

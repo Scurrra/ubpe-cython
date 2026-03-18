@@ -43,10 +43,18 @@ class UbpeBase {
     /// @brief Function that rearranges found tokens according to their weights
     /// and trims dictionary of the tokenizer to be not greater than
     /// `this.n_tokens`.
-    void _rearrange_tokens_by_weight(bool is_classic) {
+    void _rearrange_tokens_by_weight(
+        bool is_classic, std::optional<std::uint32_t> n_tokens = std::nullopt) {
         if (this->tokens_backward_mapper.size() == 0 ||
             this->tokens_weights.size() == 0)
             throw std::logic_error("Can not rearrange non-fitted tokenizer");
+
+        if (n_tokens.has_value() && n_tokens < 1) {
+            throw std::invalid_argument("`n_tokens` must be greater than 0");
+        }
+        if (!n_tokens.has_value()) {
+            n_tokens = this->n_tokens;
+        }
 
         // buffer to sort by weight and eliminate some of them
         std::vector<std::pair<std::uint32_t, std::vector<std::uint32_t>>> buf(
@@ -65,7 +73,7 @@ class UbpeBase {
             this->alphabet.size() +
             (this->known_words.has_value() ? this->known_words->size() : 0));
         auto to_delete_quantity =
-            this->tokens_weights.size() - this->n_tokens + min_token;
+            this->tokens_weights.size() - n_tokens.value() + min_token;
 
         // find tokens to delete
         std::set<std::uint32_t> to_delete;
@@ -534,6 +542,12 @@ class UbpeBase {
         std::vector<std::vector<std::vector<std::uint32_t>>> corpus,
         std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
         bool quiet = false) = 0;
+
+    /// @brief Rearrange tokens to make tokens with smaller numbers be more
+    /// valueable.
+    /// @param n_tokens Number of tokens to keep; if `std::nullopt`, keep all.
+    virtual void rearrange_tokens(
+        std::optional<std::uint32_t> n_tokens = std::nullopt) = 0;
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param doc Sequence of basic tokens to encode.

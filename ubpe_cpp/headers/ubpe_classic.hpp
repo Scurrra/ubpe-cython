@@ -280,6 +280,11 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                         " left");
         }
 
+        this->n_tokens =
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0) +
+            this->tokens_backward_mapper.size();
+
         std::transform(
             this->tokens_backward_mapper.cbegin(),
             this->tokens_backward_mapper.cend(),
@@ -395,6 +400,11 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                         " left");
         }
 
+        this->n_tokens =
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0) +
+            this->tokens_backward_mapper.size();
+
         std::transform(
             this->tokens_backward_mapper.cbegin(),
             this->tokens_backward_mapper.cend(),
@@ -411,6 +421,32 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                        std::back_inserter(this->pairs),
                        [](const auto& element) { return element.second; });
         logger.info("Cached pairs for faster encoding");
+    }
+
+    void rearrange_tokens(
+        std::optional<std::uint32_t> n_tokens = std::nullopt) override {
+        this->_rearrange_tokens_by_weight(true, n_tokens);
+
+        this->n_tokens =
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0) +
+            this->tokens_backward_mapper.size();
+
+        std::transform(
+            this->tokens_backward_mapper.cbegin(),
+            this->tokens_backward_mapper.cend(),
+            std::inserter(this->tokens_forward_mapper,
+                          this->tokens_forward_mapper.end()),
+            [](const auto& mapper)
+                -> std::pair<std::vector<std::uint32_t>, std::uint32_t> {
+                return {mapper.second, mapper.first};
+            });
+
+        // cache pairs of tokens for encoding
+        std::transform(this->tokens_backward_mapper.cbegin(),
+                       this->tokens_backward_mapper.cend(),
+                       std::back_inserter(this->pairs),
+                       [](const auto& element) { return element.second; });
     }
 
     using UbpeBase<DocType, TokenType>::encode;
