@@ -335,6 +335,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
              std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
              SplitMode::value_type split_mode = SplitMode::FULL,
              bool quiet = false) override {
+        if (!this->lookup.empty() || this->tokens_weights.size() != 0 ||
+            this->tokens_forward_mapper.size() != 0 ||
+            this->tokens_backward_mapper.size() != 0)
+            throw std::logic_error("Tokenizer can be fitted only once");
+
         if (n_candidates == 0)
             throw std::logic_error("`n_candidates` should not be 0");
 
@@ -486,6 +491,11 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
     void fit(std::vector<std::vector<std::vector<std::uint32_t>>> corpus,
              std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
              bool quiet = false) override {
+        if (!this->lookup.empty() || this->tokens_weights.size() != 0 ||
+            this->tokens_forward_mapper.size() != 0 ||
+            this->tokens_backward_mapper.size() != 0)
+            throw std::logic_error("Tokenizer can be fitted only once");
+
         if (n_candidates == 0)
             throw std::logic_error("`n_candidates` should not be 0");
 
