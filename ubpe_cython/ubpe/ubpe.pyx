@@ -166,13 +166,13 @@ cdef class UbpeInt:
     def fit(self, vector[vector[int64_t]] corpus, uint32_t n_candidates = 50, bint rearrange_tokens = True, uint8_t split_mode = 0b1111, bint quiet = False):
         deref(self.inner).fit(corpus, n_candidates, rearrange_tokens, split_mode, quiet)
 
-    def rearrange_tokens(self, *, n_tokens: int | None = None):
+    def rearrange_tokens(self, *, n_tokens: int | None = None, quiet: bool = False):
         cdef optional[uint32_t] _n_tokens
         if n_tokens is None:
             _n_tokens = optional[uint32_t]()
         else:
             _n_tokens = optional[uint32_t](<uint32_t>n_tokens)
-        deref(self.inner).rearrange_tokens(_n_tokens)
+        deref(self.inner).rearrange_tokens(_n_tokens, quiet)
 
     def encode(self, vector[int64_t] doc, uint8_t top_n = 1, uint8_t split_mode = 0b1111):
         return deref(self.inner).encode(doc, top_n, split_mode)
@@ -422,13 +422,13 @@ cdef class UbpeChar:
             raise Exception("Unknown letter")
         deref(self.inner).fit(_corpus, n_candidates, rearrange_tokens, split_mode, quiet)
 
-    def rearrange_tokens(self, *, n_tokens: int | None = None):
+    def rearrange_tokens(self, *, n_tokens: int | None = None, quiet: bool = False):
         cdef optional[uint32_t] _n_tokens
         if n_tokens is None:
             _n_tokens = optional[uint32_t]()
         else:
             _n_tokens = optional[uint32_t](<uint32_t>n_tokens)
-        deref(self.inner).rearrange_tokens(_n_tokens)
+        deref(self.inner).rearrange_tokens(_n_tokens, quiet)
 
 
     def encode(self, str doc, uint8_t top_n = 1, uint8_t split_mode = 0b1111):

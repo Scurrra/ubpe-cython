@@ -625,15 +625,33 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         logger.info("Built the lookup tree");
     }
 
-    void rearrange_tokens(
-        std::optional<std::uint32_t> n_tokens = std::nullopt) override {
+    void rearrange_tokens(std::optional<std::uint32_t> n_tokens,
+                          bool quiet) override {
+        if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer is not fitted");
+
+        auto logger =
+            Logger({.scope = "Ubpe::rearrange_tokens", .quiet = quiet});
+        logger.info("Starting rearrange tokens process");
+        logger.info("Rearranging " + std::to_string(this->n_tokens) +
+                    " tokens" +
+                    (n_tokens.has_value()
+                         ? " (limit: " + std::to_string(n_tokens.value()) + ")"
+                         : "") +
+                    "...");
+
         this->_rearrange_tokens_by_weight(false, n_tokens);
 
         this->n_tokens =
             this->alphabet.size() +
             (this->known_words.has_value() ? this->known_words->size() : 0) +
             this->tokens_backward_mapper.size();
+        logger.info("Done. " + std::to_string(this->n_tokens) +
+                    " tokens remain");
 
+        this->tokens_forward_mapper.clear();
         std::transform(
             this->tokens_backward_mapper.cbegin(),
             this->tokens_backward_mapper.cend(),
@@ -645,6 +663,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
             });
 
         // cache lookup of tokens for encoding
+        this->lookup = {};
         for (const auto& [key, value] : this->inverse_alphabet) {
             auto _ = this->lookup +
                      std::make_pair(std::vector<std::uint32_t>{key}, value);
@@ -652,16 +671,17 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         for (const auto& element : this->tokens_forward_mapper) {
             auto _ = this->lookup + element;
         }
+        logger.info("Updated the lookup tree");
     }
+    using UbpeBase<DocType, TokenType>::rearrange_tokens;
 
-    using UbpeBase<DocType, TokenType>::encode;
     std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
         const DocType& doc, std::uint8_t top_n,
         SplitMode::value_type split_mode) const override {
         if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
-            throw std::logic_error("Tokenizer was not fitted");
+            throw std::logic_error("Tokenizer is not fitted");
         if (top_n < 1)
             throw std::invalid_argument("top_n must be greater than 0");
 
@@ -759,6 +779,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
 
         return tails;
     }
+    using UbpeBase<DocType, TokenType>::encode;
 
     std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
         const std::vector<std::vector<std::uint32_t>>& parts,
@@ -766,7 +787,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
-            throw std::logic_error("Tokenizer was not fitted");
+            throw std::logic_error("Tokenizer is not fitted");
         if (top_n < 1)
             throw std::invalid_argument("top_n must be greater than 0");
 
@@ -866,7 +887,7 @@ class Ubpe : public UbpeBase<DocType, TokenType> {
         if (this->lookup.empty() || this->tokens_weights.size() == 0 ||
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
-            throw std::logic_error("Tokenizer was not fitted");
+            throw std::logic_error("Tokenizer is not fitted");
 
         // handle empty sequence
         if (tokens.size() == 0) return {};

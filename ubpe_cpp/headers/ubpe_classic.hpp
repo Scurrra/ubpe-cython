@@ -423,15 +423,33 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
         logger.info("Cached pairs for faster encoding");
     }
 
-    void rearrange_tokens(
-        std::optional<std::uint32_t> n_tokens = std::nullopt) override {
+    void rearrange_tokens(std::optional<std::uint32_t> n_tokens,
+                          bool quiet) override {
+        if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer is not fitted");
+
+        auto logger =
+            Logger({.scope = "UbpeClassic::rearrange_tokens", .quiet = quiet});
+        logger.info("Starting rearrange tokens process");
+        logger.info("Rearranging " + std::to_string(this->n_tokens) +
+                    " tokens" +
+                    (n_tokens.has_value()
+                         ? " (limit: " + std::to_string(n_tokens.value()) + ")"
+                         : "") +
+                    "...");
+
         this->_rearrange_tokens_by_weight(true, n_tokens);
 
         this->n_tokens =
             this->alphabet.size() +
             (this->known_words.has_value() ? this->known_words->size() : 0) +
             this->tokens_backward_mapper.size();
+        logger.info("Done. " + std::to_string(this->n_tokens) +
+                    " tokens remain");
 
+        this->tokens_forward_mapper.clear();
         std::transform(
             this->tokens_backward_mapper.cbegin(),
             this->tokens_backward_mapper.cend(),
@@ -443,10 +461,12 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             });
 
         // cache pairs of tokens for encoding
+        this->pairs.clear();
         std::transform(this->tokens_backward_mapper.cbegin(),
                        this->tokens_backward_mapper.cend(),
                        std::back_inserter(this->pairs),
                        [](const auto& element) { return element.second; });
+        logger.info("Recached pairs for faster encoding");
     }
 
     using UbpeBase<DocType, TokenType>::encode;
@@ -456,7 +476,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
         if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
-            throw std::logic_error("Tokenizer was not fitted");
+            throw std::logic_error("Tokenizer is not fitted");
         if (top_n < 1)
             throw std::invalid_argument("top_n must be greater than 0");
 
@@ -489,7 +509,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
         if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
-            throw std::logic_error("Tokenizer was not fitted");
+            throw std::logic_error("Tokenizer is not fitted");
         if (top_n < 1)
             throw std::invalid_argument("top_n must be greater than 0");
 
@@ -517,7 +537,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
         if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
             this->tokens_forward_mapper.size() == 0 ||
             this->tokens_backward_mapper.size() == 0)
-            throw std::logic_error("Tokenizer was not fitted");
+            throw std::logic_error("Tokenizer is not fitted");
 
         // handle empty sequence
         if (tokens.size() == 0) return {};

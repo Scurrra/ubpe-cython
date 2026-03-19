@@ -546,8 +546,27 @@ class UbpeBase {
     /// @brief Rearrange tokens to make tokens with smaller numbers be more
     /// valueable.
     /// @param n_tokens Number of tokens to keep; if `std::nullopt`, keep all.
-    virtual void rearrange_tokens(
-        std::optional<std::uint32_t> n_tokens = std::nullopt) = 0;
+    /// @param quiet Whether to suppress logging.
+    virtual void rearrange_tokens(std::optional<std::uint32_t> n_tokens,
+                                  bool quiet) = 0;
+
+    /// @brief Rearrange tokens to make tokens with smaller numbers be more
+    /// valueable.
+    /// @param n_tokens Number of tokens to keep; if `std::nullopt`, keep all.
+    void rearrange_tokens(std::optional<std::uint32_t> n_tokens) {
+        this->rearrange_tokens(n_tokens, false);
+    }
+
+    /// @brief Rearrange tokens to make tokens with smaller numbers be more
+    /// valueable.
+    /// @param quiet Whether to suppress logging.
+    void rearrange_tokens(bool quiet) {
+        this->rearrange_tokens(std::nullopt, quiet);
+    }
+
+    /// @brief Rearrange tokens to make tokens with smaller numbers be more
+    /// valueable.
+    void rearrange_tokens() { this->rearrange_tokens(std::nullopt, false); }
 
     /// @brief Encode `document` with fitted tokenizer.
     /// @param doc Sequence of basic tokens to encode.

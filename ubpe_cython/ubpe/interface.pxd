@@ -41,7 +41,7 @@ cdef extern from "ubpe_classic.hpp" namespace "ubpe":
             bint rearrange_tokens,
             bint quiet) except +
 
-        void rearrange_tokens(optional[uint32_t] n_tokens) except +
+        void rearrange_tokens(optional[uint32_t] n_tokens, bint quiet) except +
 
         vector[pair[vector[uint32_t], double]] encode(
             const DocType& doc,
@@ -108,7 +108,7 @@ cdef extern from "ubpe.hpp" namespace "ubpe":
             bint rearrange_tokens,
             bint quiet) except +
 
-        void rearrange_tokens(optional[uint32_t] n_tokens) except +
+        void rearrange_tokens(optional[uint32_t] n_tokens, bint quiet) except +
 
         vector[pair[vector[uint32_t], double]] encode(
             const DocType& doc,
