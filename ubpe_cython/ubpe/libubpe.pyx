@@ -1,5 +1,6 @@
 # distutils: language = c++
 
+include "splitter.pyx"
 include "ubpe_classic.pyx"
 include "ubpe.pyx"
 
@@ -9,7 +10,7 @@ __all__ = [
 ]
 
 UBPEClassic = {
-    int: UbpeClassicInt, 
+    int: UbpeClassicInt,
     str: UbpeClassicChar
 }
 

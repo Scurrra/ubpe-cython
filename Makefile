@@ -4,18 +4,18 @@ LIB_NAME := libubpe
 # Windows is just *special*
 WINDOWS := windows
 ifeq ($(filter $(WINDOWS)%, $(OS)), $(OS))
-	CXX_FLAGS = -fno-strict-overflow -Wsign-compare -Wall -std=c++20 -O2
+	CXX_FLAGS = -fno-strict-overflow -Wsign-compare -Wall -Wno-reorder-init-list -std=c++20 -O2
 
     PYTHON_LIBS_DIR = $(shell echo $(shell python -c "import sys; print(sys.prefix + '\\libs')"))
 	PYTHON_LIB_NAME = $(shell echo python$(shell python -c "import sys; print(sys.version_info[0])")$(shell python -c "import sys; print(sys.version_info[1])"))
 	LDFLAGS = -L$(PYTHON_LIBS_DIR) -l$(PYTHON_LIB_NAME)
-	
+
 	LIB_FILE = $(LIB_NAME).pyd
-else 	
-	CXX_FLAGS = -pthread -fno-strict-overflow -Wsign-compare -Wall -fPIC -std=c++20 -O2
+else
+	CXX_FLAGS = -pthread -fno-strict-overflow -Wsign-compare -Wall -Wno-reorder-init-list -fPIC -std=c++20 -O2
 
 	LDFLAGS = $(shell python3-config --ldflags --embed)
-	
+
 	LIB_FILE = $(LIB_NAME).so
 endif
 

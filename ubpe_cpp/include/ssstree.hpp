@@ -2,10 +2,9 @@
 #define SUB_SEQUENCES_SEARCH_TREE_HPP
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <optional>
-#include <string>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -13,21 +12,16 @@
 
 namespace ubpe {
 
-template <typename T>
-concept TreeKeyT = std::ranges::range<T> ||
-                   std::is_same_v<std::remove_cvref_t<T>,
-                                  std::basic_string<typename T::value_type>>;
-
 /// @brief SubSequence Search Tree.
 ///
 /// Well, it's a version of an optimized trie but with an efficient search
 /// operator `()` which return not the full match for the `key`, but all
 /// non-null entries which keys are prefixes in the `key`.
-template <TreeKeyT K, typename V>
+template <DocumentT K, typename V>
 class SSSTree;
 
 /// @brief SubSequence Search Tree node.
-template <TreeKeyT K, typename V>
+template <DocumentT K, typename V>
 class SSSTreeNode {
     friend class SSSTree<K, V>;
 
@@ -52,7 +46,7 @@ class SSSTreeNode {
         auto [key, value] = element;
 
         // find common prefix for the node's key and `key`
-        size_t i = 0;
+        std::size_t i = 0;
         auto max_len = std::min(this->key.size(), key.size());
         while (i < max_len && this->key[i] == key[i]) i++;
 
@@ -137,13 +131,20 @@ class SSSTreeNode {
     /// present in the tree.
     std::optional<V> operator()(
         const K& key, std::vector<std::pair<K, std::optional<V>>>& stack,
-        size_t start = 0) const {
-        assert((start < key.size()) || "`start` is out of range");
+        std::size_t start = 0) const {
+        if (key.empty()) {
+            return stack.size() > 0 ? stack.back().second : std::nullopt;
+        }
+
         // check if the untraced part of `key` is shorter than the key in the
         // node
         if (start + this->key.size() > key.size()) {
             return stack.size() > 0 ? stack.back().second : std::nullopt;
         }
+
+        if (start >= key.size())
+            throw std::out_of_range("`start` is out of range");
+
         // check if the node's key is in the desired place in `key`
         if (K(key.cbegin() + start, key.cbegin() + start + this->key.size()) ==
             this->key) {
@@ -165,7 +166,7 @@ class SSSTreeNode {
     }
 };
 
-template <TreeKeyT K, typename V>
+template <DocumentT K, typename V>
 class SSSTree {
    private:
     std::vector<SSSTreeNode<K, V>> children;
@@ -186,7 +187,7 @@ class SSSTree {
     /// @returns The new tree node.
     SSSTreeNode<K, V> operator+(std::pair<K, V> element) {
         // search which child is able to contain `key`
-        size_t i = 0;
+        std::size_t i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == element.first[0]) {
@@ -207,7 +208,7 @@ class SSSTree {
     /// @returns A value in the tree for `key`.
     std::optional<V> operator[](K& key) const {
         // search which child may contain `key`
-        size_t i = 0;
+        std::size_t i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == key[0]) {
@@ -226,12 +227,16 @@ class SSSTree {
     /// @param key Key for lookup.
     /// @returns A vector of key-value pairs in the tree where keys are prefixes
     /// or lengths of prefixes of `key` present in the tree.
-    variant<std::vector<std::pair<K, V>>, std::vector<std::pair<size_t, V>>>
-    operator()(const K& key, size_t start = 0, bool fast = false) const {
-        assert((start < key.size()) || "`start` is out of range");
+    variant<std::vector<std::pair<K, V>>,
+            std::vector<std::pair<std::size_t, V>>>
+    operator()(const K& key, std::size_t start = 0, bool fast = false) const {
+        if (key.empty())
+            throw std::invalid_argument("`key` is empty");
+        if (start >= key.size())
+            throw std::out_of_range("`start` is out of range");
 
         // search which child may contain `key`
-        size_t i = 0;
+        std::size_t i = 0;
         while (i < this->children.size()) {
             // if child's key starts with the same value as `key`
             if (this->children[i].key[0] == key[start]) {
@@ -264,12 +269,12 @@ class SSSTree {
                     // return the prefixes
                     return prefixes;
                 } else {
-                    std::vector<std::pair<size_t, V>> prefixes;
+                    std::vector<std::pair<std::size_t, V>> prefixes;
                     prefixes.reserve(stack.size());
                     std::transform(
                         stack.cbegin(), stack.cend(),
                         std::back_inserter(prefixes),
-                        [](const auto& prefix) -> std::pair<size_t, V> {
+                        [](const auto& prefix) -> std::pair<std::size_t, V> {
                             return {prefix.first.size(), prefix.second.value()};
                         });
 
@@ -283,7 +288,7 @@ class SSSTree {
 
         // return empty thing if there is not a subtree that may contain `key`
         if (fast)
-            return std::vector<std::pair<size_t, V>>{};
+            return std::vector<std::pair<std::size_t, V>>{};
         else
             return std::vector<std::pair<K, V>>{};
     }

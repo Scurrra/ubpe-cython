@@ -3,9 +3,12 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <numeric>
+#include <stdexcept>
 
 #include "counter.hpp"
+#include "logger.hpp"
 #include "pair_counter.hpp"
 #include "ubpe_base.hpp"
 
@@ -15,26 +18,149 @@ namespace ubpe {
 template <DocumentT DocType, typename TokenType = typename DocType::value_type>
 class UbpeClassic : public UbpeBase<DocType, TokenType> {
    private:
-    std::vector<std::vector<uint32_t>> pairs;
+    std::vector<std::vector<std::uint32_t>> pairs;
+
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode_word(
+        std::vector<std::uint32_t> word,
+        std::uint8_t top_n = 1) const override {
+        // recursively encode
+        while (word.size() > 1) {
+            // generate adjacent pairs in `doc`
+            std::set<std::vector<std::uint32_t>> pairs;
+            std::transform(word.cbegin(), word.cend() - 1, word.cbegin() + 1,
+                           std::inserter(pairs, pairs.end()),
+                           [](const auto& left,
+                              const auto& right) -> std::vector<std::uint32_t> {
+                               return {left, right};
+                           });
+
+            // find the first most valueable pair of tokens in the `doc`
+            std::size_t i = 0;
+            while (i < this->pairs.size() && !pairs.contains(this->pairs[i]))
+                i++;
+
+            // if `i` is out of bounds, encoding is completed
+            if (i == this->pairs.size()) break;
+
+            // pairs of old tokens to be substituted
+            std::vector<std::vector<std::uint32_t>> tokens = {this->pairs[i]};
+            // all substituted tokens must be distinct,
+            // and `current_set` tracks these tokens
+            std::set<std::uint32_t> current_set(this->pairs[i].cbegin(),
+                                                this->pairs[i].cend());
+
+            // find pairs for replacement
+            for (std::size_t j = i + 1; j < this->pairs.size(); j++) {
+                // subsequence of most valueable pairs
+                if (current_set.contains(this->pairs[j][0]) ||
+                    current_set.contains(this->pairs[j][1])) {
+                    break;
+                }
+                // that can be interrapted by tokens that do not present in
+                // `doc`
+                if (pairs.contains(this->pairs[j])) {
+                    tokens.emplace_back(this->pairs[j]);
+                    current_set.insert(this->pairs[j].cbegin(),
+                                       this->pairs[j].cend());
+                }
+            }
+
+            std::unordered_map<std::uint32_t,
+                               std::pair<std::uint32_t, std::uint32_t>>
+                sub;
+            std::transform(
+                tokens.cbegin(), tokens.cend(), std::inserter(sub, sub.end()),
+                [this](const auto& token)
+                    -> std::pair<std::uint32_t,
+                                 std::pair<std::uint32_t, std::uint32_t>> {
+                    return {token[0],
+                            {token[1], this->tokens_forward_mapper.at(token)}};
+                });
+
+            this->_replace_token_pairs(word, sub);
+        }
+
+        // compute weight of encoded `doc`
+        auto counter = Counter<std::uint32_t>(word);
+        double weight = std::accumulate(
+            counter.cbegin(), counter.cend(), 0.0,
+            [this](double total, auto& element) {
+                double freq = element.second;
+                return total + (this->tokens_weights.contains(element.first)
+                                    ? (1.0 + std::log(freq)) *
+                                          this->tokens_weights.at(element.first)
+                                    : 0.0);
+            });
+
+        return {{word, weight}};
+    }
 
    public:
-    UbpeClassic(uint32_t n_tokens, uint32_t alphabet_size)
-        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size) {}
+    UbpeClassic(std::uint32_t n_tokens,
+                std::map<TokenType, std::uint32_t> alphabet,
+                std::optional<std::map<DocType, std::uint32_t>> known_words =
+                    std::nullopt,
+                std::optional<std::set<TokenType>> break_tokens = std::nullopt,
+                std::optional<std::variant<std::string, std::wstring>>
+                    regex_pattern = std::nullopt,
+                std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet, known_words,
+                                       break_tokens, regex_pattern,
+                                       stop_tokens) {}
 
-    UbpeClassic(uint32_t n_tokens, uint32_t alphabet_size,
-                std::map<TokenType, uint32_t> alphabet)
-        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet) {}
+    UbpeClassic(std::uint32_t n_tokens,
+                std::map<TokenType, std::uint32_t> alphabet,
+                std::optional<std::map<DocType, std::uint32_t>> known_words,
+                std::optional<std::set<TokenType>> break_tokens,
+                std::optional<std::set<TokenType>> stop_tokens)
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet, known_words,
+                                       break_tokens, stop_tokens) {}
 
-    UbpeClassic(
-        uint32_t n_tokens, uint32_t alphabet_size,
-        std::map<TokenType, uint32_t> alphabet,
-        std::map<uint32_t, TokenType> inverse_alphabet,
-        std::map<std::vector<uint32_t>, uint32_t> tokens_forward_mapper,
-        std::map<uint32_t, std::vector<uint32_t>> tokens_backward_mapper,
-        std::map<uint32_t, double> tokens_weights)
-        : UbpeBase<DocType, TokenType>(n_tokens, alphabet_size, alphabet,
-                                       inverse_alphabet, tokens_forward_mapper,
-                                       tokens_backward_mapper, tokens_weights) {
+    UbpeClassic(std::uint32_t n_tokens,
+                std::map<TokenType, std::uint32_t> alphabet,
+                SplitPipelineConfig<DocType, TokenType> split_pipeline_config)
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet,
+                                       split_pipeline_config) {}
+
+    UbpeClassic(std::uint32_t n_tokens,
+                std::map<TokenType, std::uint32_t> alphabet,
+                std::map<std::uint32_t, TokenType> inverse_alphabet,
+                std::map<std::vector<std::uint32_t>, std::uint32_t>
+                    tokens_forward_mapper,
+                std::map<std::uint32_t, std::vector<std::uint32_t>>
+                    tokens_backward_mapper,
+                std::map<std::uint32_t, double> tokens_weights,
+                std::optional<std::map<DocType, std::uint32_t>> known_words =
+                    std::nullopt,
+                std::optional<std::set<TokenType>> break_tokens = std::nullopt,
+                std::optional<std::variant<std::string, std::wstring>>
+                    regex_pattern = std::nullopt,
+                std::optional<std::set<TokenType>> stop_tokens = std::nullopt)
+        : UbpeBase<DocType, TokenType>(
+              n_tokens, alphabet, inverse_alphabet, tokens_forward_mapper,
+              tokens_backward_mapper, tokens_weights, known_words, break_tokens,
+              regex_pattern, stop_tokens) {
+        std::transform(tokens_backward_mapper.cbegin(),
+                       tokens_backward_mapper.cend(),
+                       std::back_inserter(this->pairs),
+                       [](const auto& element) { return element.second; });
+    }
+
+    UbpeClassic(std::uint32_t n_tokens,
+                std::map<TokenType, std::uint32_t> alphabet,
+                std::map<std::uint32_t, TokenType> inverse_alphabet,
+                std::map<std::vector<std::uint32_t>, std::uint32_t>
+                    tokens_forward_mapper,
+                std::map<std::uint32_t, std::vector<std::uint32_t>>
+                    tokens_backward_mapper,
+                std::map<std::uint32_t, double> tokens_weights,
+                std::optional<std::map<DocType, std::uint32_t>> known_words,
+                std::optional<std::set<TokenType>> break_tokens,
+                std::optional<std::set<TokenType>> stop_tokens)
+        : UbpeBase<DocType, TokenType>(n_tokens, alphabet, inverse_alphabet,
+                                       tokens_forward_mapper,
+                                       tokens_backward_mapper, tokens_weights,
+                                       known_words, break_tokens, stop_tokens) {
         std::transform(tokens_backward_mapper.cbegin(),
                        tokens_backward_mapper.cend(),
                        std::back_inserter(this->pairs),
@@ -47,36 +173,61 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
     UbpeClassic& operator=(UbpeClassic&&) = default;
     ~UbpeClassic() = default;
 
-    void fit(const std::vector<DocType>& corpus, uint32_t n_candidates = 50,
-             bool rearrange_tokens = true) override {
-        assert((n_candidates > 0) && "`n_candidates` should not be 0");
-        auto max_token = this->alphabet_size - 1;
+    void fit(const std::vector<DocType>& corpus,
+             std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
+             SplitMode::value_type split_mode = SplitMode::FULL,
+             bool quiet = false) override {
+        if (!this->pairs.empty() || this->tokens_weights.size() != 0 ||
+            this->tokens_forward_mapper.size() != 0 ||
+            this->tokens_backward_mapper.size() != 0)
+            throw std::logic_error("Tokenizer can be fitted only once");
 
-        std::vector<std::vector<uint32_t>> _corpus;
+        if (n_candidates == 0)
+            throw std::logic_error("`n_candidates` should not be 0");
+
+        auto logger = ubpe::Logger(
+            {.scope = "UbpeClassic::fit", .quiet = quiet}, {.unit = "token"});
+        logger.info("Starting fitting process");
+
+        std::vector<std::vector<std::vector<std::uint32_t>>> _corpus;
         _corpus.reserve(corpus.size());
-        std::transform(
-            corpus.cbegin(), corpus.cend(), std::back_inserter(_corpus),
-            [this](const auto& doc) { return this->_doc_to_vec(doc); });
+        std::transform(corpus.cbegin(), corpus.cend(),
+                       std::back_inserter(_corpus),
+                       [this, &split_mode](const auto& doc) {
+                           return this->split_pipeline(doc, split_mode, false);
+                       });
+        logger.info("Loaded the corpus");
 
+        auto max_token =
+            static_cast<std::uint32_t>(this->alphabet.size() +
+                                       (this->known_words.has_value()
+                                            ? this->known_words->size()
+                                            : 0)) -
+            1;
+
+        logger.info("Starting token building");
+        logger.progress(this->n_tokens, max_token + 1);
+        logger.progress.run();
         // recursively fit tokenizer with `corpus`
         while (max_token < this->n_tokens) {
             // find number of occurences of each pair of adjacent tokens
-            auto pairs_counter = PairCounter<uint32_t>(_corpus);
+            auto pairs_counter = PairCounter<std::uint32_t>(_corpus);
             // find most frequent bytepairs, a.k.a. candidates
             auto mc = pairs_counter.most_common(n_candidates);
             if (mc.size() == 0) break;
 
             // find a banch of new tokens
             // first candidate is always added
-            std::vector<std::pair<std::pair<uint32_t, uint32_t>, size_t>>
+            std::vector<
+                std::pair<std::pair<std::uint32_t, std::uint32_t>, std::size_t>>
                 token_pairs = {mc[0]};
             // all substituted tokens must be distinct,
             // and `current_set` tracks these tokens
-            std::set<uint32_t> current_set = {mc[0].first.first,
-                                              mc[0].first.second};
+            std::set<std::uint32_t> current_set = {mc[0].first.first,
+                                                   mc[0].first.second};
 
             // check each of top candidates from the second one
-            for (size_t i = 1; i < mc.size(); i++) {
+            for (std::size_t i = 1; i < mc.size(); i++) {
                 const auto& [pair2, freq2] = mc[i];
 
                 if (current_set.contains(pair2.first) ||
@@ -102,12 +253,13 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
             }
 
             // add new pair mapping
-            std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
+            std::unordered_map<std::uint32_t,
+                               std::pair<std::uint32_t, std::uint32_t>>
+                sub;
             for (const auto& [pair, _] : token_pairs) {
                 max_token++;
-                this->tokens_weights[max_token] =
-                    std::log(static_cast<double>(1 + corpus.size()) /
-                             (1 + pairs_counter(pair).first));
+                this->tokens_weights[max_token] = std::log(
+                    (1.0 + corpus.size()) / (1.0 + pairs_counter(pair).first));
                 this->tokens_backward_mapper[max_token] = {pair.first,
                                                            pair.second};
                 sub[pair.first] = {pair.second, max_token};
@@ -118,124 +270,293 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
                           [this, &sub](auto& doc) {
                               this->_replace_token_pairs(doc, sub);
                           });
+            logger.progress.update(token_pairs.size());
         }
+        logger.progress.stop();
+        logger.info("Built " +
+                    std::to_string(this->tokens_backward_mapper.size()) +
+                    " artificial tokens");
 
         // rearrange fitted tokens
         if (rearrange_tokens) {
-            this->_rearrange_tokens_by_weight();
+            this->_rearrange_tokens_by_weight(true);
+            logger.info("Rearranged artificial tokens: " +
+                        std::to_string(this->tokens_backward_mapper.size()) +
+                        " left");
         }
 
-        std::transform(this->tokens_backward_mapper.cbegin(),
-                       this->tokens_backward_mapper.cend(),
-                       std::inserter(this->tokens_forward_mapper,
-                                     this->tokens_forward_mapper.end()),
-                       [](const auto& mapper)
-                           -> std::pair<std::vector<uint32_t>, uint32_t> {
-                           return {mapper.second, mapper.first};
-                       });
+        this->n_tokens =
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0) +
+            this->tokens_backward_mapper.size();
+
+        std::transform(
+            this->tokens_backward_mapper.cbegin(),
+            this->tokens_backward_mapper.cend(),
+            std::inserter(this->tokens_forward_mapper,
+                          this->tokens_forward_mapper.end()),
+            [](const auto& mapper)
+                -> std::pair<std::vector<std::uint32_t>, std::uint32_t> {
+                return {mapper.second, mapper.first};
+            });
 
         // cache pairs of tokens for encoding
         std::transform(this->tokens_backward_mapper.cbegin(),
                        this->tokens_backward_mapper.cend(),
                        std::back_inserter(this->pairs),
                        [](const auto& element) { return element.second; });
+        logger.info("Cached pairs for faster encoding");
     }
 
-    std::vector<std::pair<std::vector<uint32_t>, double>> encode(
-        const DocType& doc, uint8_t = 1) const override {
-        assert((this->pairs.size() != 0) && "Tokenizer was not fitted");
-        assert((this->tokens_forward_mapper.size() != 0 &&
-                this->tokens_backward_mapper.size() != 0 &&
-                this->tokens_weights.size() != 0) &&
-               "Can not rearrange non-fitted tokenizer");
+    void fit(std::vector<std::vector<std::vector<std::uint32_t>>> corpus,
+             std::uint32_t n_candidates = 50, bool rearrange_tokens = true,
+             bool quiet = false) override {
+        if (!this->pairs.empty() || this->tokens_weights.size() != 0 ||
+            this->tokens_forward_mapper.size() != 0 ||
+            this->tokens_backward_mapper.size() != 0)
+            throw std::logic_error("Tokenizer can be fitted only once");
+
+        if (n_candidates == 0)
+            throw std::logic_error("`n_candidates` should not be 0");
+
+        auto logger = ubpe::Logger(
+            {.scope = "UbpeClassic::fit", .quiet = quiet}, {.unit = "token"});
+        logger.info("Starting fitting process on splitted corpus");
+
+        auto max_token =
+            static_cast<std::uint32_t>(this->alphabet.size() +
+                                       (this->known_words.has_value()
+                                            ? this->known_words->size()
+                                            : 0)) -
+            1;
+
+        logger.info("Starting token building");
+        logger.progress(this->n_tokens, max_token + 1);
+        logger.progress.run();
+        // recursively fit tokenizer with `corpus`
+        while (max_token < this->n_tokens) {
+            // find number of occurences of each pair of adjacent tokens
+            auto pairs_counter = PairCounter<std::uint32_t>(corpus);
+            // find most frequent bytepairs, a.k.a. candidates
+            auto mc = pairs_counter.most_common(n_candidates);
+            if (mc.size() == 0) break;
+
+            // find a banch of new tokens
+            // first candidate is always added
+            std::vector<
+                std::pair<std::pair<std::uint32_t, std::uint32_t>, std::size_t>>
+                token_pairs = {mc[0]};
+            // all substituted tokens must be distinct,
+            // and `current_set` tracks these tokens
+            std::set<std::uint32_t> current_set = {mc[0].first.first,
+                                                   mc[0].first.second};
+
+            // check each of top candidates from the second one
+            for (std::size_t i = 1; i < mc.size(); i++) {
+                const auto& [pair2, freq2] = mc[i];
+
+                if (current_set.contains(pair2.first) ||
+                    current_set.contains(pair2.second)) {
+                    continue;
+                }
+                // check that border pairs are not better
+                auto good_to_add = true;
+                for (const auto& [pair1, _] : token_pairs) {
+                    good_to_add =
+                        pairs_counter({pair2.second, pair1.first}).second <
+                            freq2 &&
+                        pairs_counter({pair1.second, pair2.first}).second <
+                            freq2;
+
+                    if (!good_to_add) break;
+                }
+                // finally add candidate if it is good
+                if (good_to_add) {
+                    token_pairs.emplace_back(std::make_pair(pair2, freq2));
+                    current_set.insert({pair2.first, pair2.second});
+                }
+            }
+
+            // add new pair mapping
+            std::unordered_map<std::uint32_t,
+                               std::pair<std::uint32_t, std::uint32_t>>
+                sub;
+            for (const auto& [pair, _] : token_pairs) {
+                max_token++;
+                this->tokens_weights[max_token] = std::log(
+                    (1.0 + corpus.size()) / (1.0 + pairs_counter(pair).first));
+                this->tokens_backward_mapper[max_token] = {pair.first,
+                                                           pair.second};
+                sub[pair.first] = {pair.second, max_token};
+            }
+
+            // update `corpus` with new tokens
+            std::for_each(corpus.begin(), corpus.end(),
+                          [this, &sub](auto& doc) {
+                              this->_replace_token_pairs(doc, sub);
+                          });
+            logger.progress.update(token_pairs.size());
+        }
+        logger.progress.stop();
+        logger.info("Built " +
+                    std::to_string(this->tokens_backward_mapper.size()) +
+                    " artificial tokens");
+
+        // rearrange fitted tokens
+        if (rearrange_tokens) {
+            this->_rearrange_tokens_by_weight(true);
+            logger.info("Rearranged artificial tokens: " +
+                        std::to_string(this->tokens_backward_mapper.size()) +
+                        " left");
+        }
+
+        this->n_tokens =
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0) +
+            this->tokens_backward_mapper.size();
+
+        std::transform(
+            this->tokens_backward_mapper.cbegin(),
+            this->tokens_backward_mapper.cend(),
+            std::inserter(this->tokens_forward_mapper,
+                          this->tokens_forward_mapper.end()),
+            [](const auto& mapper)
+                -> std::pair<std::vector<std::uint32_t>, std::uint32_t> {
+                return {mapper.second, mapper.first};
+            });
+
+        // cache pairs of tokens for encoding
+        std::transform(this->tokens_backward_mapper.cbegin(),
+                       this->tokens_backward_mapper.cend(),
+                       std::back_inserter(this->pairs),
+                       [](const auto& element) { return element.second; });
+        logger.info("Cached pairs for faster encoding");
+    }
+
+    void rearrange_tokens(std::optional<std::uint32_t> n_tokens,
+                          bool quiet) override {
+        if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer is not fitted");
+
+        auto logger =
+            Logger({.scope = "UbpeClassic::rearrange_tokens", .quiet = quiet});
+        logger.info("Starting rearrange tokens process");
+        logger.info("Rearranging " + std::to_string(this->n_tokens) +
+                    " tokens" +
+                    (n_tokens.has_value()
+                         ? " (limit: " + std::to_string(n_tokens.value()) + ")"
+                         : "") +
+                    "...");
+
+        this->_rearrange_tokens_by_weight(true, n_tokens);
+
+        this->n_tokens =
+            this->alphabet.size() +
+            (this->known_words.has_value() ? this->known_words->size() : 0) +
+            this->tokens_backward_mapper.size();
+        logger.info("Done. " + std::to_string(this->n_tokens) +
+                    " tokens remain");
+
+        this->tokens_forward_mapper.clear();
+        std::transform(
+            this->tokens_backward_mapper.cbegin(),
+            this->tokens_backward_mapper.cend(),
+            std::inserter(this->tokens_forward_mapper,
+                          this->tokens_forward_mapper.end()),
+            [](const auto& mapper)
+                -> std::pair<std::vector<std::uint32_t>, std::uint32_t> {
+                return {mapper.second, mapper.first};
+            });
+
+        // cache pairs of tokens for encoding
+        this->pairs.clear();
+        std::transform(this->tokens_backward_mapper.cbegin(),
+                       this->tokens_backward_mapper.cend(),
+                       std::back_inserter(this->pairs),
+                       [](const auto& element) { return element.second; });
+        logger.info("Recached pairs for faster encoding");
+    }
+
+    using UbpeBase<DocType, TokenType>::encode;
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const DocType& doc, std::uint8_t top_n,
+        SplitMode::value_type split_mode) const override {
+        if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer is not fitted");
+        if (top_n < 1)
+            throw std::invalid_argument("top_n must be greater than 0");
 
         // handle empty sequence
         if (doc.size() == 0) return {};
 
-        std::vector<uint32_t> _doc = this->_doc_to_vec(doc);
+        auto parts = this->split_pipeline(doc, split_mode);
+        if (parts.empty()) return {{{}, 0.0}};
+        if (parts.size() == 1) return {this->encode_word(parts[0])[0]};
 
-        // recursively encode
-        while (true) {
-            // generate adjacent pairs in `doc`
-            std::set<std::vector<uint32_t>> pairs;
-            std::transform(_doc.cbegin(), _doc.cend() - 1, _doc.cbegin() + 1,
-                           std::inserter(pairs, pairs.end()),
-                           [](const auto& left,
-                              const auto& right) -> std::vector<uint32_t> {
-                               return {left, right};
-                           });
-
-            // find the first most valueable pair of tokens in the `doc`
-            size_t i = 0;
-            while (i < this->pairs.size() && !pairs.contains(this->pairs[i]))
-                i++;
-
-            // if `i` is out of bounds, encoding is completed
-            if (i == this->pairs.size()) break;
-
-            // pairs of old tokens to be substituted
-            std::vector<std::vector<uint32_t>> tokens = {this->pairs[i]};
-            // all substituted tokens must be distinct,
-            // and `current_set` tracks these tokens
-            std::set<uint32_t> current_set(this->pairs[i].cbegin(),
-                                           this->pairs[i].cend());
-
-            // find pairs for replacement
-            for (size_t j = i + 1; j < this->pairs.size(); j++) {
-                // subsequence of most valueable pairs
-                if (current_set.contains(this->pairs[j][0]) ||
-                    current_set.contains(this->pairs[j][1])) {
-                    break;
-                }
-                // that can be interrapted by tokens that do not present in
-                // `doc`
-                if (pairs.contains(this->pairs[j])) {
-                    tokens.emplace_back(this->pairs[j]);
-                    current_set.insert(this->pairs[j].cbegin(),
-                                       this->pairs[j].cend());
-                }
+        std::vector<std::uint32_t> result;
+        double weight = 0.0;
+        for (const auto& word : parts) {
+            if (word.size() == 1) {
+                result.emplace_back(word[0]);
+            } else {
+                auto [encoded_word, word_weight] = this->encode_word(word)[0];
+                result.insert(result.end(), encoded_word.begin(),
+                              encoded_word.end());
+                weight += word_weight;
             }
-
-            std::unordered_map<uint32_t, std::pair<uint32_t, uint32_t>> sub;
-            std::transform(
-                tokens.cbegin(), tokens.cend(), std::inserter(sub, sub.end()),
-                [this](const auto& token)
-                    -> std::pair<uint32_t, std::pair<uint32_t, uint32_t>> {
-                    return {token[0],
-                            {token[1], this->tokens_forward_mapper.at(token)}};
-                });
-
-            this->_replace_token_pairs(_doc, sub);
         }
 
-        // compute weight of encoded `doc`
-        auto counter = Counter<uint32_t>(_doc);
-        double weight = std::accumulate(
-            counter.cbegin(), counter.cend(), 0.0f,
-            [this](auto total, auto& element) {
-                return total + (this->tokens_weights.contains(element.first)
-                                    ? (1 + std::log(element.second)) *
-                                          this->tokens_weights.at(element.first)
-                                    : 0.0);
-            });
-
-        return {{_doc, weight}};
+        return {{result, weight}};
     }
 
-    DocType decode(const std::vector<uint32_t>& tokens) const override {
-        assert((this->tokens_forward_mapper.size() != 0 &&
-                this->tokens_backward_mapper.size() != 0 &&
-                this->tokens_weights.size() != 0) &&
-               "Can not rearrange non-fitted tokenizer");
+    std::vector<std::pair<std::vector<std::uint32_t>, double>> encode(
+        const std::vector<std::vector<std::uint32_t>>& parts,
+        std::uint8_t top_n = 1) const override {
+        if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer is not fitted");
+        if (top_n < 1)
+            throw std::invalid_argument("top_n must be greater than 0");
+
+        // handle empty sequence
+        if (parts.empty()) return {{{}, 0.0}};
+        if (parts.size() == 1) return {this->encode_word(parts[0])[0]};
+
+        std::vector<std::uint32_t> result;
+        double weight = 0.0;
+        for (const auto& word : parts) {
+            if (word.size() == 1) {
+                result.emplace_back(word[0]);
+            } else {
+                auto [encoded_word, word_weight] = this->encode_word(word)[0];
+                result.insert(result.end(), encoded_word.begin(),
+                              encoded_word.end());
+                weight += word_weight;
+            }
+        }
+
+        return {{result, weight}};
+    }
+
+    DocType decode(const std::vector<std::uint32_t>& tokens) const override {
+        if (this->pairs.size() == 0 || this->tokens_weights.size() == 0 ||
+            this->tokens_forward_mapper.size() == 0 ||
+            this->tokens_backward_mapper.size() == 0)
+            throw std::logic_error("Tokenizer is not fitted");
 
         // handle empty sequence
         if (tokens.size() == 0) return {};
 
         // future decoded sequence
-        std::vector<uint32_t> document;
+        std::vector<std::uint32_t> document;
 
         // for each token
-        for (size_t ti = 0, di = 0; ti < tokens.size(); ti++) {
+        for (std::size_t ti = 0, di = 0; ti < tokens.size(); ti++) {
             // append a new token
             document.emplace_back(tokens[ti]);
 
