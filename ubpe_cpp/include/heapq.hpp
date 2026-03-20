@@ -372,18 +372,15 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
     auto _heap = heapq<std::tuple<K, std::int64_t, V>>(_data, _comp);
 
     // Update the heap, if the new element is smaller than the top element
-    auto top = std::get<0>(_heap.top());
     for (; it != cend; ++it) {
         auto it_key = comp.key(*it);
         if (default_comparison) {
-            if (it_key < top) {
+            if (it_key < std::get<0>(_heap.top())) {
                 _heap.replace({it_key, order++, *it});
-                top = std::get<0>(_heap.top());
             }
         } else {
-            if (comp.compare(it_key, top)) {
+            if (comp.compare(it_key, std::get<0>(_heap.top()))) {
                 _heap.replace({it_key, order++, *it});
-                top = std::get<0>(_heap.top());
             }
         }
     }
@@ -454,7 +451,7 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
     }
 
     if (comp.key) {
-        using K = decltype(comp.key)::result_type;
+        using K = typename decltype(comp.key)::result_type;
         return nsmallest<V, K, Container>(cbegin, cend, n, comp);
     }
     bool default_comparison = false;
@@ -526,17 +523,14 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
     auto _heap = heapq<std::tuple<V, std::int64_t, V>>(_data, _comp);
 
     // Update the heap, if the new element is smaller than the top element
-    auto top = std::get<0>(_heap.top());
     for (; it != cend; ++it) {
         if (default_comparison) {
-            if (*it < top) {
+            if (*it < std::get<0>(_heap.top())) {
                 _heap.replace({*it, order++, *it});
-                top = std::get<0>(_heap.top());
             }
         } else {
-            if (comp.compare(*it, top)) {
+            if (comp.compare(*it, std::get<0>(_heap.top()))) {
                 _heap.replace({*it, order++, *it});
-                top = std::get<0>(_heap.top());
             }
         }
     }
@@ -686,18 +680,15 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
     auto _heap = heapq<std::tuple<K, std::int64_t, V>>(_data, _comp);
 
     // Update the heap, if the new element is greater than the top element
-    auto top = std::get<0>(_heap.top());
     for (; it != cend; ++it) {
         auto it_key = comp.key(*it);
         if (default_comparison) {
-            if (it_key > top) {
+            if (it_key > std::get<0>(_heap.top())) {
                 _heap.replace({it_key, order--, *it});
-                top = std::get<0>(_heap.top());
             }
         } else {
-            if (comp.compare(it_key, top)) {
+            if (comp.compare(it_key, std::get<0>(_heap.top()))) {
                 _heap.replace({it_key, order--, *it});
-                top = std::get<0>(_heap.top());
             }
         }
     }
@@ -768,7 +759,7 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
     }
 
     if (comp.key) {
-        using K = decltype(comp.key)::result_type;
+        using K = typename decltype(comp.key)::result_type;
         return nlargest<V, K, Container>(cbegin, cend, n, comp);
     }
 
@@ -841,17 +832,14 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
     auto _heap = heapq<std::tuple<V, std::int64_t, V>>(_data, _comp);
 
     // Update the heap, if the new element is greater than the top element
-    auto top = std::get<0>(_heap.top());
     for (; it != cend; ++it) {
         if (default_comparison) {
-            if (*it > top) {
+            if (*it > std::get<0>(_heap.top())) {
                 _heap.replace({*it, order--, *it});
-                top = std::get<0>(_heap.top());
             }
         } else {
-            if (comp.compare(*it, top)) {
+            if (comp.compare(*it, std::get<0>(_heap.top()))) {
                 _heap.replace({*it, order--, *it});
-                top = std::get<0>(_heap.top());
             }
         }
     }
