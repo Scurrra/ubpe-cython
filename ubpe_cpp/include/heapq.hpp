@@ -37,10 +37,15 @@ concept HasConstIterator = requires {
 template <typename T>
 concept ContainerConcept = HasConstIterator<T>;
 
+// 4. PlainType concept
+template <typename T>
+concept PlainType = std::same_as<T, std::decay_t<T>>;
+
 /// C++ implementation of the heapq module (w/o the merge function).
 /// https://github.com/python/cpython/blob/main/Lib/heapq.py
-template <typename V, typename K = V,
+template <PlainType V, PlainType K = V,
           ContainerConcept Container = std::vector<V>>
+    requires(PlainType<typename Container::value_type>)
 class heapq {
    public:
     /// @brief Comparator object to hold a comparator function and optional
@@ -67,7 +72,7 @@ class heapq {
         auto n = this->data.size();
         // Transform bottom-up.
         for (std::int64_t i = n / 2 - 1; i >= 0; --i) {
-            this->siftup(i);
+            this->siftup(static_cast<std::size_t>(i));
         }
     }
 
@@ -82,7 +87,7 @@ class heapq {
         auto n = this->data.size();
         // Transform bottom-up.
         for (std::int64_t i = n / 2 - 1; i >= 0; --i) {
-            this->siftup(i);
+            this->siftup(static_cast<std::size_t>(i));
         }
     }
 
@@ -281,8 +286,8 @@ class heapq {
 /// Note: The function assumes that you have passed a key extraction function.
 /// If a comparison function is passed, it is considered to work as a "less
 /// than" comparison.
-template <typename V, typename K, ContainerConcept Container = std::vector<V>>
-    requires(!ContainerConcept<K>)
+template <PlainType V, PlainType K, ContainerConcept Container = std::vector<V>>
+    requires(!ContainerConcept<K> && PlainType<typename Container::value_type>)
 std::vector<V> nsmallest(typename Container::const_iterator cbegin,
                          typename Container::const_iterator cend, std::size_t n,
                          typename heapq<V, K>::Comparator comp = {}) {
@@ -348,7 +353,7 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
     _data.reserve(n);
     std::generate_n(std::back_inserter(_data), n,
                     [&comp, &it, &order]() -> std::tuple<K, std::int64_t, V> {
-                        auto value = *(it++);
+                        auto value = static_cast<V>(*(it++));
                         return {comp.key(value), order++, value};
                     });
 
@@ -373,14 +378,15 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
 
     // Update the heap, if the new element is smaller than the top element
     for (; it != cend; ++it) {
-        auto it_key = comp.key(*it);
+        auto it_value = static_cast<V>(*it);
+        auto it_key = comp.key(it_value);
         if (default_comparison) {
             if (it_key < std::get<0>(_heap.top())) {
-                _heap.replace({it_key, order++, *it});
+                _heap.replace({it_key, order++, it_value});
             }
         } else {
             if (comp.compare(it_key, std::get<0>(_heap.top()))) {
-                _heap.replace({it_key, order++, *it});
+                _heap.replace({it_key, order++, it_value});
             }
         }
     }
@@ -388,7 +394,7 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
     // Element extraction
     std::vector<V> result(n);
     for (std::int64_t i = static_cast<std::int64_t>(n - 1); i >= 0; i--) {
-        result[i] = std::get<2>(_heap.pop());
+        result[static_cast<std::size_t>(i)] = std::get<2>(_heap.pop());
     }
     return result;
 }
@@ -403,8 +409,8 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
 /// Note: The function assumes that you have passed a key extraction function.
 /// If a comparison function is passed, it is considered to work as a "less
 /// than" comparison.
-template <typename V, typename K, ContainerConcept Container = std::vector<V>>
-    requires(!ContainerConcept<K>)
+template <PlainType V, PlainType K, ContainerConcept Container = std::vector<V>>
+    requires(!ContainerConcept<K> && PlainType<typename Container::value_type>)
 std::vector<V> nsmallest(const Container& data, std::size_t n,
                          typename heapq<V, K>::Comparator comp = {}) {
     return nsmallest<V, K, Container>(data.cbegin(), data.cend(), n, comp);
@@ -420,8 +426,8 @@ std::vector<V> nsmallest(const Container& data, std::size_t n,
 /// Note: The function assumes that you have passed a key extraction function.
 /// If a comparison function is passed, it is considered to work as a "less
 /// than" comparison.
-template <typename V, typename K, ContainerConcept Container = std::vector<V>>
-    requires(!ContainerConcept<K>)
+template <PlainType V, PlainType K, ContainerConcept Container = std::vector<V>>
+    requires(!ContainerConcept<K> && PlainType<typename Container::value_type>)
 std::vector<V> nsmallest(std::initializer_list<V> il, std::size_t n,
                          typename heapq<V, K>::Comparator comp = {}) {
     Container data(il);
@@ -440,7 +446,8 @@ std::vector<V> nsmallest(std::initializer_list<V> il, std::size_t n,
 /// function; if it is passed, arguments are automatically forwarded to a proper
 /// function. If a comparison function is passed, it is considered to work as a
 /// "less than" comparison.
-template <typename V, ContainerConcept Container = std::vector<V>>
+template <PlainType V, ContainerConcept Container = std::vector<V>>
+    requires PlainType<typename Container::value_type>
 std::vector<V> nsmallest(typename Container::const_iterator cbegin,
                          typename Container::const_iterator cend, std::size_t n,
                          typename heapq<V>::Comparator comp = {}) {
@@ -499,7 +506,7 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
     _data.reserve(n);
     std::generate_n(std::back_inserter(_data), n,
                     [&it, &order]() -> std::tuple<V, std::int64_t, V> {
-                        auto value = *(it++);
+                        auto value = static_cast<V>(*(it++));
                         return {value, order++, value};
                     });
 
@@ -524,13 +531,14 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
 
     // Update the heap, if the new element is smaller than the top element
     for (; it != cend; ++it) {
+        auto it_value = static_cast<V>(*it);
         if (default_comparison) {
-            if (*it < std::get<0>(_heap.top())) {
-                _heap.replace({*it, order++, *it});
+            if (it_value < std::get<0>(_heap.top())) {
+                _heap.replace({it_value, order++, it_value});
             }
         } else {
-            if (comp.compare(*it, std::get<0>(_heap.top()))) {
-                _heap.replace({*it, order++, *it});
+            if (comp.compare(it_value, std::get<0>(_heap.top()))) {
+                _heap.replace({it_value, order++, it_value});
             }
         }
     }
@@ -538,7 +546,7 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
     // Element extraction
     std::vector<V> result(n);
     for (std::int64_t i = static_cast<std::int64_t>(n - 1); i >= 0; i--) {
-        result[i] = std::get<2>(_heap.pop());
+        result[static_cast<std::size_t>(i)] = std::get<2>(_heap.pop());
     }
     return result;
 }
@@ -554,7 +562,8 @@ std::vector<V> nsmallest(typename Container::const_iterator cbegin,
 /// function; if it is passed, arguments are automatically forwarded to a proper
 /// function. If a comparison function is passed, it is considered to work as a
 /// "less than" comparison.
-template <typename V, ContainerConcept Container = std::vector<V>>
+template <PlainType V, ContainerConcept Container = std::vector<V>>
+    requires PlainType<typename Container::value_type>
 std::vector<V> nsmallest(const Container& data, std::size_t n,
                          typename heapq<V>::Comparator comp = {}) {
     return nsmallest<V, Container>(data.cbegin(), data.cend(), n, comp);
@@ -571,7 +580,8 @@ std::vector<V> nsmallest(const Container& data, std::size_t n,
 /// function; if it is passed, arguments are automatically forwarded to a proper
 /// function. If a comparison function is passed, it is considered to work as a
 /// "less than" comparison.
-template <typename V, ContainerConcept Container = std::vector<V>>
+template <PlainType V, ContainerConcept Container = std::vector<V>>
+    requires PlainType<typename Container::value_type>
 std::vector<V> nsmallest(std::initializer_list<V> il, std::size_t n,
                          typename heapq<V>::Comparator comp = {}) {
     Container data(il);
@@ -589,8 +599,8 @@ std::vector<V> nsmallest(std::initializer_list<V> il, std::size_t n,
 /// Note: The function assumes that you have passed a key extraction function.
 /// If a comparison function is passed, it is considered to work as a "greater
 /// than" comparison.
-template <typename V, typename K, ContainerConcept Container = std::vector<V>>
-    requires(!ContainerConcept<K>)
+template <PlainType V, PlainType K, ContainerConcept Container = std::vector<V>>
+    requires(!ContainerConcept<K> && PlainType<typename Container::value_type>)
 std::vector<V> nlargest(typename Container::const_iterator cbegin,
                         typename Container::const_iterator cend, std::size_t n,
                         typename heapq<V, K>::Comparator comp = {}) {
@@ -656,7 +666,7 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
     _data.reserve(n);
     std::generate_n(std::back_inserter(_data), n,
                     [&comp, &it, &order]() -> std::tuple<K, std::int64_t, V> {
-                        auto value = *(it++);
+                        auto value = static_cast<V>(*(it++));
                         return {comp.key(value), order--, value};
                     });
 
@@ -681,14 +691,15 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
 
     // Update the heap, if the new element is greater than the top element
     for (; it != cend; ++it) {
-        auto it_key = comp.key(*it);
+        auto it_value = static_cast<V>(*it);
+        auto it_key = comp.key(it_value);
         if (default_comparison) {
             if (it_key > std::get<0>(_heap.top())) {
-                _heap.replace({it_key, order--, *it});
+                _heap.replace({it_key, order--, it_value});
             }
         } else {
             if (comp.compare(it_key, std::get<0>(_heap.top()))) {
-                _heap.replace({it_key, order--, *it});
+                _heap.replace({it_key, order--, it_value});
             }
         }
     }
@@ -696,7 +707,7 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
     // Element extraction
     std::vector<V> result(n);
     for (std::int64_t i = static_cast<std::int64_t>(n - 1); i >= 0; i--) {
-        result[i] = std::get<2>(_heap.pop());
+        result[static_cast<std::size_t>(i)] = std::get<2>(_heap.pop());
     }
     return result;
 }
@@ -711,8 +722,8 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
 /// Note: The function assumes that you have passed a key extraction function.
 /// If a comparison function is passed, it is considered to work as a "greater
 /// than" comparison.
-template <typename V, typename K, ContainerConcept Container = std::vector<V>>
-    requires(!ContainerConcept<K>)
+template <PlainType V, PlainType K, ContainerConcept Container = std::vector<V>>
+    requires(!ContainerConcept<K> && PlainType<typename Container::value_type>)
 std::vector<V> nlargest(const Container& data, std::size_t n,
                         typename heapq<V, K>::Comparator comp = {}) {
     return nlargest<V, K, Container>(data.cbegin(), data.cend(), n, comp);
@@ -728,8 +739,8 @@ std::vector<V> nlargest(const Container& data, std::size_t n,
 /// Note: The function assumes that you have passed a key extraction function.
 /// If a comparison function is passed, it is considered to work as a "greater
 /// than" comparison.
-template <typename V, typename K, ContainerConcept Container = std::vector<V>>
-    requires(!ContainerConcept<K>)
+template <PlainType V, PlainType K, ContainerConcept Container = std::vector<V>>
+    requires(!ContainerConcept<K> && PlainType<typename Container::value_type>)
 std::vector<V> nlargest(std::initializer_list<V> il, std::size_t n,
                         typename heapq<V, K>::Comparator comp = {}) {
     Container data(il);
@@ -748,7 +759,8 @@ std::vector<V> nlargest(std::initializer_list<V> il, std::size_t n,
 /// function; if it is passed, arguments are automatically forwarded to a proper
 /// function. If a comparison function is passed, it is considered to work as a
 /// "greater than" comparison.
-template <typename V, ContainerConcept Container = std::vector<V>>
+template <PlainType V, ContainerConcept Container = std::vector<V>>
+    requires PlainType<typename Container::value_type>
 std::vector<V> nlargest(typename Container::const_iterator cbegin,
                         typename Container::const_iterator cend, std::size_t n,
                         typename heapq<V>::Comparator comp = {}) {
@@ -808,7 +820,7 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
     _data.reserve(n);
     std::generate_n(std::back_inserter(_data), n,
                     [&it, &order]() -> std::tuple<V, std::int64_t, V> {
-                        auto value = *(it++);
+                        auto value = static_cast<V>(*(it++));
                         return {value, order--, value};
                     });
 
@@ -833,13 +845,14 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
 
     // Update the heap, if the new element is greater than the top element
     for (; it != cend; ++it) {
+        auto it_value = static_cast<V>(*it);
         if (default_comparison) {
-            if (*it > std::get<0>(_heap.top())) {
-                _heap.replace({*it, order--, *it});
+            if (it_value > std::get<0>(_heap.top())) {
+                _heap.replace({it_value, order--, it_value});
             }
         } else {
-            if (comp.compare(*it, std::get<0>(_heap.top()))) {
-                _heap.replace({*it, order--, *it});
+            if (comp.compare(it_value, std::get<0>(_heap.top()))) {
+                _heap.replace({it_value, order--, it_value});
             }
         }
     }
@@ -847,7 +860,7 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
     // Element extraction
     std::vector<V> result(n);
     for (std::int64_t i = static_cast<std::int64_t>(n - 1); i >= 0; i--) {
-        result[i] = std::get<2>(_heap.pop());
+        result[static_cast<std::size_t>(i)] = std::get<2>(_heap.pop());
     }
     return result;
 }
@@ -863,7 +876,8 @@ std::vector<V> nlargest(typename Container::const_iterator cbegin,
 /// function; if it is passed, arguments are automatically forwarded to a proper
 /// function. If a comparison function is passed, it is considered to work as a
 /// "greater than" comparison.
-template <typename V, ContainerConcept Container = std::vector<V>>
+template <PlainType V, ContainerConcept Container = std::vector<V>>
+    requires PlainType<typename Container::value_type>
 std::vector<V> nlargest(const Container& data, std::size_t n,
                         typename heapq<V>::Comparator comp = {}) {
     return nlargest<V, Container>(data.cbegin(), data.cend(), n, comp);
@@ -880,7 +894,8 @@ std::vector<V> nlargest(const Container& data, std::size_t n,
 /// function; if it is passed, arguments are automatically forwarded to a proper
 /// function. If a comparison function is passed, it is considered to work as a
 /// "greater than" comparison.
-template <typename V, ContainerConcept Container = std::vector<V>>
+template <PlainType V, ContainerConcept Container = std::vector<V>>
+    requires PlainType<typename Container::value_type>
 std::vector<V> nlargest(std::initializer_list<V> il, std::size_t n,
                         typename heapq<V>::Comparator comp = {}) {
     Container data(il);
