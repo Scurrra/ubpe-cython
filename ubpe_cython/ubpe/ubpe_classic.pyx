@@ -352,10 +352,14 @@ cdef class UbpeClassicChar:
             tokens_weights.insert((int(token), weight))
 
         inverse_known_words = model.get("known_words", None)
+        if inverse_known_words is not None:
+            inverse_known_words = {
+                int(token): seq for token, seq in inverse_known_words.items()
+            }
 
         cdef UbpeClassicChar inst = cls(alphabet=model["alphabet"],
             known_words={
-                seq: int(token) for token, seq in inverse_known_words.items()
+                seq: token for token, seq in inverse_known_words.items()
             } if inverse_known_words is not None else None,
             break_tokens=model.get("break_tokens", None),
             regex_str=model.get("regex_str", None),
