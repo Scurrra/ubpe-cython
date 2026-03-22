@@ -102,10 +102,13 @@ cdef class UbpeClassicInt:
         if inv_known_words.has_value():
             inst["known_words"] = inv_known_words.value()
             inst["n_tokens"] += len(inst["known_words"])
-        if break_tokens.has_value():
-            inst["break_tokens"] = break_tokens.value()
-        if stop_tokens.has_value():
-            inst["stop_tokens"] = stop_tokens.value()
+
+        inst["break_tokens"] = [
+            self.inverse_alphabet[token] for token in break_tokens.value()
+        ] if break_tokens.has_value() and break_tokens.value().size() > 0 else None
+        inst["stop_tokens"] = [
+            self.inverse_alphabet[token] for token in stop_tokens.value()
+        ] if stop_tokens.has_value() and stop_tokens.value().size() > 0 else None
 
         inst["mapper"] = tokens_mapper
         inst["weights"] = tokens_weights
@@ -309,12 +312,16 @@ cdef class UbpeClassicChar:
         }
 
         if self.split_pipeline is not None:
-            inst["break_tokens"] = self.split_pipeline.break_tokens
+            inst["break_tokens"] = list(self.split_pipeline.break_tokens) if self.split_pipeline.break_tokens is not None else None
             inst["regex_str"] = self.split_pipeline.regex_str
-            inst["stop_tokens"] = self.split_pipeline.stop_tokens
+            inst["stop_tokens"] = list(self.split_pipeline.stop_tokens) if self.split_pipeline.stop_tokens is not None else None
         else:
-            inst["break_tokens"] = [self.inverse_alphabet[token] for token in break_tokens.value()] if break_tokens.has_value() and break_tokens.value().size() > 0 else None
-            inst["stop_tokens"] = [self.inverse_alphabet[token] for token in stop_tokens.value()] if stop_tokens.has_value() and stop_tokens.value().size() > 0 else None
+            inst["break_tokens"] = [
+                self.inverse_alphabet[token] for token in break_tokens.value()
+            ] if break_tokens.has_value() and break_tokens.value().size() > 0 else None
+            inst["stop_tokens"] = [
+                self.inverse_alphabet[token] for token in stop_tokens.value()
+            ] if stop_tokens.has_value() and stop_tokens.value().size() > 0 else None
 
         inst["mapper"] = tokens_mapper
         inst["weights"] = tokens_weights
