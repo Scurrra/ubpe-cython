@@ -495,7 +495,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
         auto parts = this->split_pipeline(doc, split_mode);
         if (parts.empty()) return {{{}, 0.0}};
-        if (parts.size() == 1) return {this->encode_word(parts[0])[0]};
+        if (parts.size() == 1) return this->encode_word(parts[0]);
 
         std::vector<std::uint32_t> result;
         double weight = 0.0;
@@ -525,7 +525,7 @@ class UbpeClassic : public UbpeBase<DocType, TokenType> {
 
         // handle empty sequence
         if (parts.empty()) return {{{}, 0.0}};
-        if (parts.size() == 1) return {this->encode_word(parts[0])[0]};
+        if (parts.size() == 1) return this->encode_word(parts[0]);
 
         std::vector<std::uint32_t> result;
         double weight = 0.0;
