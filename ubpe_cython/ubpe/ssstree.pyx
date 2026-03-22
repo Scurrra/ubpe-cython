@@ -116,7 +116,11 @@ cdef class SSSTreeNode:
             for child in self.children:
                 if child.key[0] == key[start]:
                     child(key, stack, start)
-        return stack[-1]
+
+        if len(stack) > 0:
+            return stack[-1]
+        else:
+            return (key, None)
 
 
 cdef class SSSTree:
