@@ -250,6 +250,7 @@ class Logger {
     /// @param msg (std::string): The message to log.
     void info(std::string msg) {
         if (this->quiet) return;
+        if (this->progress.is_running) std::cerr << "\n";
         std::cerr << "[" << this->prefix << "INFO]: " << msg << "\n";
     }
 
@@ -258,6 +259,7 @@ class Logger {
     /// @param msg (std::string): The message to log.
     void debug(std::string msg) {
         if (this->quiet) return;
+        if (this->progress.is_running) std::cerr << "\n";
         std::cerr << "[" << this->prefix << "DEBUG]: " << msg << "\n";
     }
 
@@ -266,6 +268,7 @@ class Logger {
     /// @param msg (std::string): The message to log.
     void warn(std::string msg) {
         if (this->quiet) return;
+        if (this->progress.is_running) std::cerr << "\n";
         std::cerr << "[" << this->prefix << "WARN]: " << msg << "\n";
     }
 
@@ -274,6 +277,7 @@ class Logger {
     /// @param msg (std::string): The message to log.
     void error(std::string msg) {
         if (this->quiet) return;
+        if (this->progress.is_running) std::cerr << "\n";
         std::cerr << "[" << this->prefix << "ERROR]: " << msg << "\n";
     }
 
